@@ -43,6 +43,29 @@ The extension configures Chromium's proxy stack, checks whether the route actual
 
 ## 🚀 Quick Start
 
+### Option 0 — Android app (real VPN, system-wide)
+
+The repository ships a native Android VPN client (`android/`) built on the official
+[WireGuard Android tunnel library](https://github.com/WireGuard/wireguard-android)
+(`VpnService` + wireguard-go). It connects to the same Ghost endpoint stack
+(`server/docker-compose.yml`) and routes **all device traffic**, not just browser traffic.
+
+**Get the APK:** every push builds signed-debug and unsigned-release APKs via GitHub
+Actions — download the `ghost-web-vpn-android` artifact from the
+[Actions tab](https://github.com/TempleEU/ghost-web-vpn/actions/workflows/android.yml).
+
+**Build locally:**
+
+```sh
+cd android
+gradle assembleDebug   # APK at app/build/outputs/apk/debug/app-debug.apk
+```
+
+**Connect:** install the APK → paste the WireGuard peer config printed by your Ghost
+endpoint (or fill in the fields: private key, address, server public key,
+`SERVERURL:SERVERPORT`, allowed IPs) → press **Connect** → approve the Android VPN
+consent dialog. A quick-settings tile and reboot auto-reconnect are included.
+
 ### Option A — Free self-hosted endpoint
 
 Use a Linux machine you already control: home PC, mini-PC, Raspberry Pi, or always-on server. The included setup uses Tailscale's free tier and a SOCKS5 proxy bound to the private Tailscale address.
@@ -152,6 +175,10 @@ Every push to `main` and every pull request runs the validation workflow. The CI
 
 ```text
 ghost-web-vpn/
+├── android/                      # Native Android VPN client (WireGuard tunnel)
+│   ├── app/                      # Kotlin app: import, connect, stats, QS tile
+│   ├── scripts/                  # Launcher icon generator
+│   └── settings.gradle.kts       # Gradle project definition
 ├── background.js                 # Proxy lifecycle, reconnect and auth
 ├── popup.html                    # Extension UI
 ├── popup.css                     # Ghost dark UI styling
@@ -166,7 +193,9 @@ ghost-web-vpn/
 │   ├── README.md                 # Server/deployment documentation
 │   ├── docker-compose.yml        # Endpoint stack
 │   └── free-self-hosted/         # Tailscale endpoint
-└── .github/workflows/ci.yml      # Automated validation + packaging
+└── .github/workflows/
+    ├── ci.yml                    # Extension validation + ZIP packaging
+    └── android.yml               # Android APK build + artifact upload
 ```
 
 ## 🧱 Design principles

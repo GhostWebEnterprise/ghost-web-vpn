@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ghost Web VPN</string>
+    <string name="tile_label">Ghost VPN</string>
+    <string name="tile_connected">Connected</string>
+    <string name="tile_disconnected">Disconnected</string>
+
+    <string name="status_disconnected">👻 Disconnected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_connected">👻 Connected</string>
+    <string name="status_failed">Connection failed</string>
+
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+
+    <string name="setup_title">Set up your endpoint</string>
+    <string name="hint_paste_config">Paste your WireGuard peer config (from the Ghost endpoint) here…</string>
+    <string name="import_config">Import config</string>
+    <string name="hint_private_key">Private key (base64)</string>
+    <string name="generate_keys">Generate new keypair</string>
+    <string name="hint_address">Address, e.g. 10.66.66.2/32</string>
+    <string name="hint_dns">DNS (optional, e.g. 1.1.1.1)</string>
+    <string name="hint_server_public_key">Server public key (base64)</string>
+    <string name="hint_endpoint">Endpoint, e.g. vpn.example.com:51820</string>
+    <string name="hint_allowed_ips">Allowed IPs, 0.0.0.0/0, ::/0 for full tunnel</string>
+    <string name="save_config">Save configuration</string>
+
+    <string name="no_config">No tunnel configuration yet. Set up your endpoint below.</string>
+    <string name="no_config_hint">No configuration yet — paste your Ghost peer config below.</string>
+    <string name="paste_config_first">Paste a config first</string>
+    <string name="config_imported">Config imported — review the fields, then save.</string>
+    <string name="fill_required_fields">Fill in private key, address, server key, endpoint and allowed IPs.</string>
+    <string name="invalid_config">That configuration could not be parsed.</string>
+    <string name="config_saved">Configuration saved.</string>
+    <string name="vpn_permission_denied">VPN permission denied — Ghost cannot route traffic without it.</string>
+    <string name="public_key_copied">Keypair generated. Give this public key to the endpoint:\n%1$s</string>
+
+    <string name="remove_config">Remove configuration</string>
+    <string name="remove_title">Remove configuration?</string>
+    <string name="remove_message">The stored tunnel configuration will be deleted from this device.</string>
+    <string name="remove">Remove</string>
+
+    <string name="mode_full">full tunnel</string>
+    <string name="mode_split">split tunnel</string>
+    <string name="unknown">unknown</string>
+    <string name="config_summary">Address %1$s → %2$s\nDNS: %3$s · %4$s</string>
+
+    <string name="stats_format">↓ %1$s · ↑ %2$s · %3$s</string>
+    <string name="handshake_ago">handshake %1$d s ago</string>
+    <string name="handshake_none">waiting for handshake…</string>
+</resources>

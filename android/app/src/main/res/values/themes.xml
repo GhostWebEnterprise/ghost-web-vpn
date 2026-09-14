@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.GhostWebVpn" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/ghost_green</item>
+        <item name="colorOnPrimary">@color/ghost_bg</item>
+        <item name="colorSurface">@color/ghost_surface</item>
+        <item name="colorOnSurface">@color/ghost_text</item>
+        <item name="android:colorBackground">@color/ghost_bg</item>
+        <item name="android:statusBarColor">@color/ghost_bg</item>
+    </style>
+</resources>
