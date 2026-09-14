@@ -2,7 +2,7 @@
 
 <img src="icon.svg" width="96" height="96" alt="Ghost Web VPN logo">
 
-# Ghost Web VPN
+# Ghost Web VPN by Ghost Web Enterprise ©
 
 **Private browser routing. Ghost-style protection. Your endpoint, your traffic path.**
 
