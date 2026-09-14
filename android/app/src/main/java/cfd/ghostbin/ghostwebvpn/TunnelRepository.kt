@@ -4,7 +4,10 @@ import android.content.Context
 import com.wireguard.config.Config
 import com.wireguard.config.InetNetwork
 import com.wireguard.config.Peer
+import com.wireguard.crypto.Curve25519
+import com.wireguard.crypto.Key
 import java.net.InetAddress
+import java.security.SecureRandom
 
 /**
  * Persists the tunnel config the user imported, so the VPN can be
@@ -82,8 +85,15 @@ class TunnelRepository(context: Context) {
          * @return Pair(base64PrivateKey, base64PublicKey)
          */
         fun generateKeypair(): Pair<String, String> {
-            val privateKey = com.wireguard.crypto.Key.generatePrivateKey()
-            val publicKey = privateKey.publicKey()
+            val privateKeyBytes = ByteArray(32)
+            SecureRandom().nextBytes(privateKeyBytes)
+            // Clamp to a valid Curve25519 scalar (same clamping wg uses)
+            privateKeyBytes[0] = (privateKeyBytes[0].toInt() and 248).toByte()
+            privateKeyBytes[31] = ((privateKeyBytes[31].toInt() and 127) or 64).toByte()
+            val publicKeyBytes = ByteArray(32)
+            Curve25519.eval(publicKeyBytes, 0, privateKeyBytes, null)
+            val privateKey = Key.fromBytes(privateKeyBytes)
+            val publicKey = Key.fromBytes(publicKeyBytes)
             return privateKey.toBase64() to publicKey.toBase64()
         }
 
@@ -128,15 +138,7 @@ class TunnelRepository(context: Context) {
         fun endpointOf(config: Config): String? =
             config.getPeers().firstOrNull()?.let { peer: Peer ->
                 val ep = peer.getEndpoint().orElse(null) ?: return null
-                val host = ep.host
-                val resolved = ep.resolved.orElse(null)
-                val displayHost = if (host.contains(':') && resolved != null) {
-                    // Wrap IPv6 literals in brackets for display
-                    "[${resolved.hostAddress}]"
-                } else {
-                    host
-                }
-                "$displayHost:${ep.port}"
+                "${ep.host}:${ep.port}"
             }
 
         /** All configured DNS servers of the config, comma-joined. */
@@ -157,7 +159,7 @@ class TunnelRepository(context: Context) {
 
         /** The client private key of the config, or null. */
         fun privateKeyOf(config: Config): String? =
-            runCatching { config.getInterface().getPrivateKey().toBase64() }.getOrNull()
+            runCatching { config.getInterface().keyPair.privateKey.toBase64() }.getOrNull()
 
         /** Resolves a hostname for display purposes; returns the input on failure. */
         fun resolveHost(host: String): String =

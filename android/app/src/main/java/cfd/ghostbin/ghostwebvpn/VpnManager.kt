@@ -1,6 +1,5 @@
 package cfd.ghostbin.ghostwebvpn
 
-import android.app.Application
 import android.content.Context
 import android.util.Log
 import com.wireguard.android.backend.Backend
