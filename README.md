@@ -8,7 +8,7 @@
 
 A privacy-focused Chromium proxy client built from scratch as a Manifest V3 extension. Route browser traffic through an endpoint you control, verify the route live, and reduce browser-level location leakage.
 
-[![CI](https://github.com/TempleEU/ghost-web-vpn/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TempleEU/ghost-web-vpn/actions/workflows/ci.yml?query=branch%3Amain)
+[![CI](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/ci.yml?query=branch%3Amain)
 [![Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-67e8a2?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-manifest-v3)
 [![Self-hosted](https://img.shields.io/badge/Endpoint-Self--Hosted-67e8a2)](server/free-self-hosted/README.md)
 [![FOSSVPS](https://img.shields.io/badge/Cloud-FOSSVPS-67e8a2)](https://fossvps.org/)
@@ -50,18 +50,14 @@ The repository ships a native Android VPN client (`android/`) built on the offic
 (`VpnService` + wireguard-go). It connects to the same Ghost endpoint stack
 (`server/docker-compose.yml`) and routes **all device traffic**, not just browser traffic.
 
-**Get the APK:** every push builds a debug APK plus a release APK via GitHub
-Actions — download the `ghost-web-vpn-android` (debug) or
-`ghost-web-vpn-android-release` (signed release) artifact from the
-[Actions tab](https://github.com/TempleEU/ghost-web-vpn/actions/workflows/android.yml).
-Without signing secrets configured, the release artifact is
-`ghost-web-vpn-android-release-unsigned`.
+**Get the APK:** every push to the Android project builds a debug APK plus a release APK via GitHub Actions. Download the `ghost-web-vpn-android` (debug) or `ghost-web-vpn-android-release` (signed release) artifact from the [Android workflow](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/android.yml). Without signing secrets configured, the release artifact is `ghost-web-vpn-android-release-unsigned`.
 
 **Build locally:**
 
 ```sh
 cd android
 gradle assembleDebug   # APK at app/build/outputs/apk/debug/app-debug.apk
+gradle assembleRelease # release APK at app/build/outputs/apk/release/
 ```
 
 **Release signing (one-time setup):** the release APK is signed from GitHub
@@ -196,7 +192,7 @@ Every push to `main` and every pull request runs the validation workflow. The CI
 
 **Build gate:** `validate` → package → artifact upload.
 
-[![CI](https://github.com/TempleEU/ghost-web-vpn/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TempleEU/ghost-web-vpn/actions/workflows/ci.yml?query=branch%3Amain)
+[![CI](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/ci.yml?query=branch%3Amain)
 
 ## 📁 Project structure
 
@@ -260,6 +256,7 @@ The extension stays focused on browser routing, verification and browser-level p
 - [x] Free Tailscale self-hosted endpoint
 - [x] Automated CI validation and ZIP packaging
 - [x] FOSSVPS deployment target
+- [x] Native Android system-wide VPN client
 - [ ] Hardened production provisioning
 - [ ] Expanded endpoint health diagnostics
 - [ ] Additional Chromium privacy hardening
@@ -270,6 +267,7 @@ The extension stays focused on browser routing, verification and browser-level p
 - **[Free self-hosted endpoint](server/free-self-hosted/README.md)** — Tailscale + SOCKS5
 - **[Server documentation](server/README.md)** — endpoint and deployment options
 - **[CI workflow](.github/workflows/ci.yml)** — validation and packaging
+- **[Android workflow](.github/workflows/android.yml)** — APK build and release artifact
 
 ## 🤝 Contributing
 
