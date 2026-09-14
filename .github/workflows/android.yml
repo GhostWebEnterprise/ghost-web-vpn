@@ -9,6 +9,10 @@ on:
     paths: ["android/**", ".github/workflows/android.yml"]
   workflow_dispatch:
 
+# True only when release-signing secrets are configured on the repo.
+env:
+  SIGNING_READY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,12 +31,25 @@ jobs:
           gradle-version: "8.10.2"
           cache-read-only: false
 
+      - name: Restore signing keystore
+        if: env.SIGNING_READY == 'true'
+        working-directory: android
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > app-release.keystore
+
       - name: Build debug APK
         working-directory: android
         run: gradle assembleDebug --stacktrace --warning-mode=all
 
-      - name: Build release APK (unsigned)
+      # Signing env vars are always exported; blank secrets are ignored by the
+      # Gradle signing config, so this produces a signed release APK when the
+      # secrets exist and an unsigned one otherwise.
+      - name: Build release APK
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: app-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: gradle assembleRelease --stacktrace
 
       - name: Summarize build outputs
@@ -48,7 +65,16 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Upload release APK artifact
+      - name: Upload signed release APK artifact
+        if: env.SIGNING_READY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghost-web-vpn-android-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Upload unsigned release APK artifact
+        if: env.SIGNING_READY != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ghost-web-vpn-android-release-unsigned

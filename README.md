@@ -50,9 +50,12 @@ The repository ships a native Android VPN client (`android/`) built on the offic
 (`VpnService` + wireguard-go). It connects to the same Ghost endpoint stack
 (`server/docker-compose.yml`) and routes **all device traffic**, not just browser traffic.
 
-**Get the APK:** every push builds signed-debug and unsigned-release APKs via GitHub
-Actions — download the `ghost-web-vpn-android` artifact from the
+**Get the APK:** every push builds a debug APK plus a release APK via GitHub
+Actions — download the `ghost-web-vpn-android` (debug) or
+`ghost-web-vpn-android-release` (signed release) artifact from the
 [Actions tab](https://github.com/TempleEU/ghost-web-vpn/actions/workflows/android.yml).
+Without signing secrets configured, the release artifact is
+`ghost-web-vpn-android-release-unsigned`.
 
 **Build locally:**
 
@@ -60,6 +63,30 @@ Actions — download the `ghost-web-vpn-android` artifact from the
 cd android
 gradle assembleDebug   # APK at app/build/outputs/apk/debug/app-debug.apk
 ```
+
+**Release signing (one-time setup):** the release APK is signed from GitHub
+secrets, so the artifact installs directly on a device.
+
+1. Generate a keystore (keep it and its passwords private — never commit it):
+
+```sh
+keytool -genkeypair -v -keystore ghost-release.keystore \
+  -alias ghost -keyalg RSA -keysize 2048 -validity 10000
+```
+
+2. Add these repository secrets (**Settings → Secrets and variables → Actions**):
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 ghost-release.keystore` output |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+| `ANDROID_KEY_ALIAS` | e.g. `ghost` |
+| `ANDROID_KEY_PASSWORD` | key password (defaults to the keystore password if unset) |
+
+3. Push (or re-run the workflow) — the release artifact is then `app-release.apk`, signed and installable.
+
+For local release builds, put the same values in `android/keystore.properties`
+(git-ignored): `storeFile`, `storePassword`, `keyAlias`, `keyPassword`.
 
 **Connect:** install the APK → paste the WireGuard peer config printed by your Ghost
 endpoint (or fill in the fields: private key, address, server public key,
