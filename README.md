@@ -15,6 +15,8 @@ Privacy-focused browser routing and VPN tooling for endpoints you control.
 
 [![Test](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/ci.yml?branch=main&style=plastic&label=Test)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/ci.yml)
 [![Android](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/android.yml?branch=main&style=plastic&label=Android)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/android.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/codeql.yml?branch=main&style=plastic&label=CodeQL)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/codeql.yml)
+[![Super-Linter](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/super-linter.yml?branch=main&style=plastic&label=Super-Linter)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/super-linter.yml)
 [![Dependabot](https://img.shields.io/github/issues/GhostWebEnterprise/ghost-web-vpn/dependabot?style=plastic&label=Dependabot)](https://github.com/GhostWebEnterprise/ghost-web-vpn/network/updates)
 [![Website](https://img.shields.io/badge/Website-GhostWeb-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostwebenterprise.github.io/ghostweb.signal/)
 
@@ -120,7 +122,7 @@ GitHub Actions packages the extension as `ghost-web-vpn.zip`.
 
 ## 🧪 Verification & CI
 
-Every push to `main` and every pull request runs the CI validation workflow. The project verifies:
+Every push to `main` and every pull request runs the validation, security and lint workflows. The project verifies:
 
 - Manifest JSON validity
 - JavaScript syntax
@@ -130,10 +132,13 @@ Every push to `main` and every pull request runs the CI validation workflow. The
 - Shell setup hygiene when ShellCheck is available
 - Accidental private-key material
 - Creation of the distributable extension ZIP
+- JavaScript/TypeScript, JSON, YAML, Markdown, Bash and GitHub Actions linting
+- CodeQL security analysis
+- Automated dependency-update configuration through Dependabot
 
 The Android workflow separately builds the native VPN application and publishes APK artifacts.
 
-**Delivery gate:** `validate → package → artifact → verify`.
+**Delivery gate:** `validate → lint → security → package → artifact → verify`.
 
 ## 🏗️ Architecture
 
@@ -175,9 +180,13 @@ ghost-web-vpn/
 │   ├── docker-compose.yml
 │   └── free-self-hosted/
 ├── QUICKSTART.md
-└── .github/workflows/
-    ├── ci.yml
-    └── android.yml
+└── .github/
+    ├── dependabot.yml
+    └── workflows/
+        ├── ci.yml
+        ├── android.yml
+        ├── codeql.yml
+        └── super-linter.yml
 ```
 
 ## ⚠️ Limitations
@@ -200,6 +209,9 @@ ghost-web-vpn/
 - [x] Automated CI validation and ZIP packaging
 - [x] FOSSVPS deployment target
 - [x] Native Android system-wide VPN client
+- [x] CodeQL security workflow
+- [x] Super-Linter workflow
+- [x] Dependabot configuration
 - [ ] Hardened production provisioning
 - [ ] Expanded endpoint health diagnostics
 - [ ] Additional Chromium privacy hardening
