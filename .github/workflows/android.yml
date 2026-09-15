@@ -59,7 +59,7 @@ jobs:
           find app/build/outputs -name "*.apk" -exec ls -lh {} \; || true
 
       - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghost-web-vpn-android
           path: android/app/build/outputs/apk/debug/app-debug.apk
@@ -67,7 +67,7 @@ jobs:
 
       - name: Upload signed release APK artifact
         if: env.SIGNING_READY == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghost-web-vpn-android-release
           path: android/app/build/outputs/apk/release/app-release.apk
@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload unsigned release APK artifact
         if: env.SIGNING_READY != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghost-web-vpn-android-release-unsigned
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk
