@@ -48,6 +48,6 @@ $("routeSite").addEventListener("click",()=>siteRule("route")); $("bypassSite").
 $("saveProfile").addEventListener("click",async()=>{const name=prompt("Profile name",`${$("host").value}:${$("port").value}`);if(!name)return;const r=await send("saveProfile",{profile:{name,...readForm()}});if(r?.error)setMessage(r.error,"error");else{setMessage("Profile saved.","ok");await load();}});
 $("switchProfile").addEventListener("click",async()=>{const id=$("profiles").value;if(!id)return;const r=await send("switchProfile",{id});if(r?.error)setMessage(r.error,"error");else setMessage(r.ok?"Profile switched — full protection active.":"Profile switched but endpoint could not be verified.",r.ok?"ok":"error");await load();});
 $("deleteProfile").addEventListener("click",async()=>{const id=$("profiles").value;if(id)await send("deleteProfile",{id});await load();});
-$("language").addEventListener("change",async()=>{const lang=$("language").value;const c=await send("getConfig");await persist({language:lang});translate(lang);});
+$("language").addEventListener("change",async()=>{const lang=$("language").value;await persist({language:lang});translate(lang);});
 
 (async()=>{const c=await send("getConfig");const lang=c.language&&I18N[c.language]?c.language:autoLanguage();$("language").value=lang;translate(lang);buildOptions(c);await load();})();
