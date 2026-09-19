@@ -9,7 +9,9 @@ on:
     paths: ["android/**", ".github/workflows/android.yml"]
   workflow_dispatch:
 
-# True only when release-signing secrets are configured on the repo.
+permissions:
+  contents: read
+
 env:
   SIGNING_READY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
 
@@ -40,9 +42,6 @@ jobs:
         working-directory: android
         run: gradle assembleDebug --stacktrace --warning-mode=all
 
-      # Signing env vars are always exported; blank secrets are ignored by the
-      # Gradle signing config, so this produces a signed release APK when the
-      # secrets exist and an unsigned one otherwise.
       - name: Build release APK
         working-directory: android
         env:
