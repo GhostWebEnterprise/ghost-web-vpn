@@ -3,9 +3,6 @@ name: Android APK Build
 on:
   push:
     branches: [main]
-    paths:
-      - "android/**"
-      - ".github/workflows/android.yml"
   pull_request:
     branches: [main]
     paths:
@@ -99,4 +96,7 @@ jobs:
         run: |
           set -e
           TAG="android-v${{ github.run_number }}"
-          gh release create "$TAG" release-apk/*.apk             --repo "${{ github.repository }}"             --title "Ghost Web VPN Android $TAG"             --generate-notes
+          gh release create "$TAG" release-apk/*.apk \
+            --repo "${{ github.repository }}" \
+            --title "Ghost Web VPN Android $TAG" \
+            --generate-notes
