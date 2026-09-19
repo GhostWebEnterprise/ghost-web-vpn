@@ -38,6 +38,49 @@ Privacy-focused browser routing and VPN tooling for endpoints you control.
 
 ---
 
+
+## 🖥️ Desktop application
+
+GhostWeb VPN now includes a cross-platform **Electron desktop browser application** under `desktop/`.
+
+- Windows: NSIS installer + ZIP
+- macOS: DMG + ZIP
+- Linux: AppImage + DEB
+- Uses the same HTTP/HTTPS/SOCKS endpoint model as the browser extension.
+- Fail-closed behaviour can protect the desktop application's browser session.
+- Desktop mode is **not** a system-wide OS VPN; use the Android client or a native OS VPN/WireGuard gateway for system-wide routing.
+
+Build locally:
+
+```sh
+cd desktop
+npm install
+npm run dist
+```
+
+GitHub Actions builds desktop packages on Linux, Windows and macOS.
+
+## 🌐 Browser application
+
+The Manifest V3 extension remains the browser-native GhostWeb VPN client. It provides per-site routing, endpoint profiles, location/timezone protection and connection verification without requiring a separate desktop application.
+
+## 📱 Unified application model
+
+```text
+                 GhostWeb VPN
+                      │
+       ┌──────────────┼──────────────┐
+       ▼              ▼              ▼
+    Android         Desktop        Browser
+  VpnService +     Electron       Chromium MV3
+   WireGuard       browser app      extension
+       │              │              │
+       └──────────────┼──────────────┘
+                      ▼
+              Ghost endpoint stack
+          HTTP / HTTPS / SOCKS / WireGuard
+```
+
 ## 🌐 What GhostWeb VPN does
 
 GhostWeb VPN is a **browser proxy client plus a native Android VPN client**. The Chromium extension routes browser traffic through an endpoint you control, while the Android application can provide system-wide WireGuard-based VPN routing.
