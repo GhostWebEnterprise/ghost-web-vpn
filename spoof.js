@@ -1,3 +1,4 @@
+/* global chrome */
 // Ghost Web VPN — location protection content script.
 //
 // A proxy/VPN changes your IP, but the browser still leaks your real location
@@ -145,7 +146,7 @@
         },
         timestamp: Date.now(),
       });
-      navigator.geolocation.getCurrentPosition = (success, _error, _options) => {
+      navigator.geolocation.getCurrentPosition = success => {
         setTimeout(() => success(fakePosition()), 0);
       };
       navigator.geolocation.watchPosition = success => {
