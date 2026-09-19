@@ -1,0 +1,19 @@
+{
+  "env": {
+    "browser": true,
+    "webextensions": true,
+    "es2021": true
+  },
+  "globals": {
+    "PROXY_PRESETS": "readonly",
+    "LOCATION_PRESETS": "readonly",
+    "findPreset": "readonly",
+    "findProxyPreset": "readonly"
+  },
+  "rules": {
+    "no-undef": "error",
+    "no-unused-vars": "warn",
+    "no-empty": "warn",
+    "no-useless-escape": "warn"
+  }
+}
