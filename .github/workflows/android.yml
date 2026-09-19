@@ -36,6 +36,25 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "::error::ANDROID_KEYSTORE_BASE64 GitHub secret is missing"; exit 1; }
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "::error::ANDROID_KEYSTORE_PASSWORD GitHub secret is missing"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "::error::ANDROID_KEY_ALIAS GitHub secret is missing"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::ANDROID_KEY_PASSWORD GitHub secret is missing"; exit 1; }
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release.keystore
+          test -s release.keystore
+          printf 'ANDROID_KEYSTORE_PATH=release.keystore\n' >> "$GITHUB_ENV"
+          printf 'ANDROID_KEYSTORE_PASSWORD=%s\n' "$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          printf 'ANDROID_KEY_ALIAS=%s\n' "$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+          printf 'ANDROID_KEY_PASSWORD=%s\n' "$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
+
       - name: Verify Android project
         run: |
           test -f settings.gradle || test -f settings.gradle.kts
@@ -45,15 +64,18 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace --warning-mode=all
 
-      - name: Build release APK
+      - name: Build signed release APK
         run: gradle assembleRelease --stacktrace --warning-mode=all
 
-      - name: Verify APK outputs
+      - name: Verify signed APK
         run: |
-          set -e
-          find app/build/outputs -type f -name "*.apk" -print -exec ls -lh {} \;
-          test -n "$(find app/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
-          test -n "$(find app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
+          set -euo pipefail
+          APK="$(find app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          echo "Release APK: $APK"
+          apksigner verify --verbose "$APK"
+          apksigner verify --print-certs "$APK"
+          sha256sum "$APK"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -63,7 +85,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload release APK
+      - name: Upload signed release APK
         uses: actions/upload-artifact@v4
         with:
           name: ghost-web-vpn-release-apk
@@ -72,29 +94,32 @@ jobs:
           retention-days: 30
 
   publish-release:
-    name: Publish verified release APK
+    name: Publish verified signed release APK
     needs: build-apk
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download release APK
+      - name: Download signed release APK
         uses: actions/download-artifact@v4
         with:
           name: ghost-web-vpn-release-apk
           path: release-apk
 
-      - name: Verify release artifact
+      - name: Verify downloaded APK
         run: |
-          set -e
-          find release-apk -type f -name "*.apk" -print -exec ls -lh {} \;
-          test -n "$(find release-apk -type f -name '*.apk' -print -quit)"
+          set -euo pipefail
+          APK="$(find release-apk -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          apksigner verify --verbose "$APK"
+          apksigner verify --print-certs "$APK"
+          sha256sum "$APK"
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -e
+          set -euo pipefail
           TAG="android-v${{ github.run_number }}"
           gh release create "$TAG" release-apk/*.apk \
             --repo "${{ github.repository }}" \
