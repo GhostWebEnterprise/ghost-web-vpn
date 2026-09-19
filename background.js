@@ -1,3 +1,4 @@
+/* global chrome */
 const DEFAULT_LOCATION = { enabled: false, lat: 0, lng: 0, tzId: "UTC" };
 const DEFAULTS = {
   enabled: false,
