@@ -1,0 +1,23 @@
+{
+  "name": "ghostweb-vpn-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GhostWeb VPN desktop browser application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^38.1.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "cfd.ghostbin.ghostwebvpn",
+    "productName": "GhostWeb VPN",
+    "files": ["main.js", "preload.js", "index.html"],
+    "linux": { "target": ["AppImage", "deb"] },
+    "win": { "target": ["nsis", "zip"] },
+    "mac": { "target": ["dmg", "zip"] }
+  }
+}
