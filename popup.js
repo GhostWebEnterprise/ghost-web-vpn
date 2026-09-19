@@ -1,3 +1,4 @@
+/* global chrome, PROXY_PRESETS, LOCATION_PRESETS, findPreset, findProxyPreset */
 const $ = id => document.getElementById(id);
 const EMPTY_LOCATION = { enabled: false, lat: 0, lng: 0, tzId: "UTC" };
 
@@ -31,7 +32,7 @@ function readForm(){return {scheme:$("scheme").value,host:$("host").value.trim()
 async function persist(patch={}){const c=await send("getConfig");return send("setConfig",{config:{...readForm(),...c, ...patch, enabled:c.enabled}});}
 async function connect(c){ const config={...readForm(),enabled:true,killSwitch:$("killSwitch").checked,location:currentLocation(c),siteRules:c.siteRules}; if(!config.host||!Number.isInteger(config.port)||config.port<1||config.port>65535){setMessage("Enter a valid proxy host and port.","error");return;} setMessage("Connecting…"); const result=await send("connectAndSync",{config}); if(result?.error){setMessage(result.error,"error");return;} if(result.ok){setMessage("Connected — full protection active.","ok");setLocMessage("Location synced to endpoint.","ok");}else{setMessage("Endpoint did not respond — protection remains blocked.","error");}}
 async function disconnect(){await send("disconnect");setMessage("Disconnected.");}
-async function siteRule(rule){const [tab]=await chrome.tabs.query({active:true,currentWindow:true}); let host=""; try{host=new URL(tab?.url||"").hostname;}catch{} if(!host||/^(chrome|edge|about|file|chrome-extension):$/.test((tab?.url||"").split(":")[0]+":")){setMessage("This tab has no routable website host.","error");return;} const r=await send("setSiteRule",{host,rule}); if(r?.error)setMessage(r.error,"error"); else {setMessage(`${rule} rule applied to ${host}.`,"ok");await load();}}
+async function siteRule(rule){const [tab]=await chrome.tabs.query({active:true,currentWindow:true}); let host=""; try{host=new URL(tab?.url||"").hostname;}catch{/* invalid tab URL */} if(!host||/^(chrome|edge|about|file|chrome-extension):$/.test((tab?.url||"").split(":")[0]+":")){setMessage("This tab has no routable website host.","error");return;} const r=await send("setSiteRule",{host,rule}); if(r?.error)setMessage(r.error,"error"); else {setMessage(`${rule} rule applied to ${host}.`,"ok");await load();}}
 async function sync(){const r=await send("syncIdentity");if(r.ok)setLocMessage(`Location synced to ${r.proof.timezone}.` ,"ok");else setLocMessage("Endpoint region sync failed.","error");await load();}
 async function load(){const c=await send("getConfig");render(c);const [tab]=await chrome.tabs.query({active:true,currentWindow:true});try{$("siteHost").textContent=`Active tab: ${new URL(tab?.url||"").hostname||"—"}`;}catch{$("siteHost").textContent="Active tab: —";}}
 
