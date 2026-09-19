@@ -57,7 +57,7 @@ Host     : 100.101.102.103
 Port     : 1080
 Username : (blank)
 Password : (blank)
-```
+```text
 
 > Tip: this machine also advertises itself as a Tailscale **exit node** by
 > default. If you later want ALL device traffic (not just browser traffic)
