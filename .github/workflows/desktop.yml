@@ -9,6 +9,9 @@ on:
     paths: ["desktop/**", ".github/workflows/desktop.yml"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
