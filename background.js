@@ -45,12 +45,10 @@ function cleanRules(rules) {
   for (const type of Object.keys(out)) out[type] = [...new Set((Array.isArray(rules?.[type]) ? rules[type] : []).map(normalizeHost).filter(Boolean))];
   return out;
 }
-function hostMatches(host, rule) { return host === rule || host.endsWith("." + rule); }
-
 function pacData(c) {
   const endpoint = JSON.stringify(`${c.scheme}://${c.host.trim()}:${Number(c.port)}`);
   const rules = JSON.stringify(cleanRules(c.siteRules));
-  return `function FindProxyForURL(url, host) {\nconst endpoint=${endpoint}; const rules=${rules}; host=(host||\"\").toLowerCase();\nconst match=list=>list.some(r=>host===r||host.endsWith(\".\"+r));\nif(match(rules.block)) return \"PROXY 0.0.0.0:${BLOCK_PORT}\";\nif(match(rules.bypass)) return \"DIRECT\";\nif(match(rules.route)) return endpoint.startsWith(\"socks5://\")?\"SOCKS5 ${c.host.trim()}:${Number(c.port)}\":endpoint.startsWith(\"socks4://\")?\"SOCKS ${c.host.trim()}:${Number(c.port)}\":endpoint.startsWith(\"https://\")?\"HTTPS ${c.host.trim()}:${Number(c.port)}\":\"PROXY ${c.host.trim()}:${Number(c.port)}\";\nreturn endpoint.startsWith(\"socks5://\")?\"SOCKS5 ${c.host.trim()}:${Number(c.port)}\":endpoint.startsWith(\"socks4://\")?\"SOCKS ${c.host.trim()}:${Number(c.port)}\":endpoint.startsWith(\"https://\")?\"HTTPS ${c.host.trim()}:${Number(c.port)}\":\"PROXY ${c.host.trim()}:${Number(c.port)}\";\n}`;
+  return `function FindProxyForURL(url, host) {\nconst endpoint=${endpoint}; const rules=${rules}; host=(host||"").toLowerCase();\nconst match=list=>list.some(r=>host===r||host.endsWith("."+r));\nif(match(rules.block)) return "PROXY 0.0.0.0:${BLOCK_PORT}";\nif(match(rules.bypass)) return "DIRECT";\nif(match(rules.route)) return endpoint.startsWith("socks5://")?"SOCKS5 ${c.host.trim()}:${Number(c.port)}":endpoint.startsWith("socks4://")?"SOCKS ${c.host.trim()}:${Number(c.port)}":endpoint.startsWith("https://")?"HTTPS ${c.host.trim()}:${Number(c.port)}":"PROXY ${c.host.trim()}:${Number(c.port)}";\nreturn endpoint.startsWith("socks5://")?"SOCKS5 ${c.host.trim()}:${Number(c.port)}":endpoint.startsWith("socks4://")?"SOCKS ${c.host.trim()}:${Number(c.port)}":endpoint.startsWith("https://")?"HTTPS ${c.host.trim()}:${Number(c.port)}":"PROXY ${c.host.trim()}:${Number(c.port)}";\n}`;
 }
 
 async function applyProxy() {
