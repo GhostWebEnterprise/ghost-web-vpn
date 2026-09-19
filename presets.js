@@ -42,5 +42,6 @@ const LOCATION_PRESETS = [
   { city: "Auckland", country: "New Zealand", tzId: "Pacific/Auckland", lat: -36.85, lng: 174.76 },
 ];
 
+/* eslint-disable no-unused-vars */
 function findPreset(tzId) { return LOCATION_PRESETS.find(p => p.tzId === tzId); }
 function findProxyPreset(id) { return PROXY_PRESETS.find(p => p.id === id); }
