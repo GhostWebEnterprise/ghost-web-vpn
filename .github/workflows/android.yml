@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -51,11 +51,12 @@ jobs:
       - name: Build release APK
         run: gradle assembleRelease --stacktrace --warning-mode=all
 
-      - name: List APK outputs
-        if: always()
+      - name: Verify APK outputs
         run: |
-          echo "=== APK outputs ==="
+          set -e
           find app/build/outputs -type f -name "*.apk" -print -exec ls -lh {} \;
+          test -n "$(find app/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
+          test -n "$(find app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -72,3 +73,30 @@ jobs:
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
+
+  publish-release:
+    name: Publish verified release APK
+    needs: build-apk
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ghost-web-vpn-release-apk
+          path: release-apk
+
+      - name: Verify release artifact
+        run: |
+          set -e
+          find release-apk -type f -name "*.apk" -print -exec ls -lh {} \;
+          test -n "$(find release-apk -type f -name '*.apk' -print -quit)"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="android-v${{ github.run_number }}"
+          gh release create "$TAG" release-apk/*.apk             --repo "${{ github.repository }}"             --title "Ghost Web VPN Android $TAG"             --generate-notes
