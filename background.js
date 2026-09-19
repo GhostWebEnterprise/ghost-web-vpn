@@ -75,7 +75,7 @@ async function syncWebRTC(c) {
   try {
     const value = c.enabled && c.location?.enabled && !c.protectionDropped ? "disable_non_proxied_udp" : "default";
     await chrome.privacy.network.webRTCIPHandlingPolicy.set({ value });
-  } catch {}
+  } catch { return; }
 }
 
 async function fetchJsonThroughProxy(url, timeout = 10000) {
