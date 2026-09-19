@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GhostWeb VPN</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif}body{margin:0;background:#090b10;color:#f4f6f8}
+main{max-width:410px;margin:auto;padding:28px}.brand{display:flex;gap:14px;align-items:center}.brand img{width:52px;height:52px}.brand h1{margin:0;font-size:25px}.brand p{margin:4px 0;color:#9ca6b5}
+.card{margin-top:22px;padding:20px;border:1px solid #242a34;border-radius:18px;background:#11151c}
+label{display:block;margin:14px 0}input,select,button{box-sizing:border-box;width:100%;padding:12px;border-radius:10px;border:1px solid #303744;background:#171c24;color:inherit}
+button{cursor:pointer;font-weight:700}.power{margin:22px 0}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.status{padding:10px 12px;border-radius:10px;background:#171c24;margin-bottom:14px}
+small{color:#8f99a8}.danger{color:#ffb4ab}
+</style>
+</head>
+<body><main>
+<div class="brand"><img src="../icon.svg" alt=""><div><h1>GhostWeb VPN</h1><p>Private desktop browser routing</p></div></div>
+<div class="card">
+<div id="status" class="status">Disconnected</div>
+<label>Protocol<select id="scheme"><option>http</option><option>https</option><option selected>socks5</option><option>socks4</option></select></label>
+<label>Proxy host<input id="host" placeholder="vpn.example.com"></label>
+<label>Port<input id="port" type="number" value="1080"></label>
+<div class="row"><button id="connect">Connect</button><button id="disconnect">Disconnect</button></div>
+<p><small>Desktop mode routes traffic from the GhostWeb desktop browser session. It is not a system-wide VPN.</small></p>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function render(s){$("status").textContent=s?"Connected":"Disconnected";}
+$("connect").onclick=async()=>{if(!$("host").value||!$("port").value)return;const r=await window.ghostVPN.connect({scheme:$("scheme").value,host:$("host").value,port:Number($("port").value)});render(r.connected)};
+$("disconnect").onclick=async()=>{const r=await window.ghostVPN.disconnect();render(r.connected)};
+window.ghostVPN.status().then(r=>render(r.connected));
+</script>
+</body></html>
