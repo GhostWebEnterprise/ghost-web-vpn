@@ -18,7 +18,7 @@ Privacy-focused browser routing and VPN tooling for endpoints you control.
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/codeql.yml?branch=main&style=plastic&label=CodeQL)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/codeql.yml)
 [![Super-Linter](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/super-linter.yml?branch=main&style=plastic&label=Super-Linter)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/super-linter.yml)
 [![Dependabot](https://img.shields.io/github/issues/GhostWebEnterprise/ghost-web-vpn/dependabot?style=plastic&label=Dependabot)](https://github.com/GhostWebEnterprise/ghost-web-vpn/network/updates)
-[![Website](https://img.shields.io/badge/Website-GhostWeb-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostwebenterprise.github.io/ghostweb.signal/)
+[![Website](https://img.shields.io/badge/Website-GhostWeb-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostweb.is-a.dev)
 
 </div>
 
