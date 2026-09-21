@@ -6,18 +6,19 @@
 
 **Private by design. Secure by default. Open source.**
 
+> **Development status:** GhostWeb VPN is under active development. The current codebase and development builds are not yet presented as production-ready privacy infrastructure.
+
 Privacy-focused browser routing and VPN tooling for endpoints you control.
 
 [![GitHub](https://img.shields.io/badge/GitHub-GhostWebEnterprise-181717?style=plastic&logo=github&logoColor=white)](https://github.com/GhostWebEnterprise)
-[![Platform](https://img.shields.io/badge/Platform-Chromium%20%7C%20Android-3DDC84?style=plastic&logo=android&logoColor=white)](https://github.com/GhostWebEnterprise/ghost-web-vpn)
+[![Status](https://img.shields.io/badge/Status-Under%20Development-orange?style=plastic)](https://github.com/GhostWebEnterprise/ghost-web-vpn)
+[![Platform](https://img.shields.io/badge/Platform-Browser%20%7C%20Android%20%7C%20Desktop-3DDC84?style=plastic&logo=android&logoColor=white)](https://github.com/GhostWebEnterprise/ghost-web-vpn)
 [![Release](https://img.shields.io/github/v/release/GhostWebEnterprise/ghost-web-vpn?style=plastic&label=GhostWeb%20VPN)](https://github.com/GhostWebEnterprise/ghost-web-vpn/releases)
-[![License](https://img.shields.io/badge/License-Open%20Source-blue?style=plastic)](https://github.com/GhostWebEnterprise/ghost-web-vpn)
 [![Test](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/ci.yml?branch=main&style=plastic&label=Test)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/ci.yml)
 [![Android](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/android.yml?branch=main&style=plastic&label=Android)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/android.yml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/codeql.yml?branch=main&style=plastic&label=CodeQL)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/codeql.yml)
 [![Super-Linter](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/super-linter.yml?branch=main&style=plastic&label=Super-Linter)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/super-linter.yml)
-[![Dependabot](https://img.shields.io/github/issues/GhostWebEnterprise/ghost-web-vpn/dependabot?style=plastic&label=Dependabot)](https://github.com/GhostWebEnterprise/ghost-web-vpn/network/updates)
-[![Website](https://img.shields.io/badge/Website-ghostweb.bot.cd-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostweb.bot.cd)
+[![Website](https://img.shields.io/badge/Project%20Hub-ghostwebenterprise.github.io-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostwebenterprise.github.io/vpn.html)
 
 </div>
 
@@ -25,40 +26,51 @@ Privacy-focused browser routing and VPN tooling for endpoints you control.
 
 ## 👻 GhostWeb ecosystem
 
-**GhostWeb VPN** is part of the GhostWeb open-source ecosystem for privacy, secure communication, network protection, AI tooling, and privacy-focused Android development.
+GhostWeb VPN is the network-privacy project in the GhostWeb ecosystem.
 
 | Project | Purpose | Status |
 |---|---|---|
-| **GhostWeb Signal** | Privacy-focused Android messaging and calling | **Available** |
-| **GhostWeb VPN** | Browser and network protection | **Available** |
-| **GhostWeb AI** | AI client, agents, and delivery tooling | **Available** |
+| **GhostWeb Signal** | Privacy-focused Android messaging and calling | Public project |
+| **GhostWeb VPN** | Browser, Android and desktop network protection | **Under development** |
+| **GhostWeb AI** | AI client, agents and delivery tooling | Public project |
 | **GhostOS** | Privacy-focused custom Android ROM | **In development** |
 
-**Official project hub:** https://ghostweb.bot.cd
+**Project hub:** https://ghostwebenterprise.github.io/
 
-## 🌐 What GhostWeb VPN does
+## 🚧 Current status
 
-GhostWeb VPN provides a Chromium Manifest V3 proxy client, a native Android VPN client, and cross-platform desktop tooling for endpoints you control.
+GhostWeb VPN is being actively developed and verified. Architecture, clients, privacy behavior, CI and packaging may change before a stable release.
 
-### Highlights
+Do not rely on a development build as your only privacy or security control. A release appearing in GitHub does not by itself mean the project has reached production-ready status; stable status will be stated explicitly when the relevant functionality has been validated.
 
-- One-click connect / disconnect
-- HTTP, HTTPS, SOCKS4 and SOCKS5 endpoint support
-- Live connectivity verification
-- Browser geolocation and timezone protection
-- Best-effort WebRTC hardening
-- Persistent endpoint configuration
-- Self-hosted endpoint support
-- Native Android system-wide VPN client using WireGuard
-- Desktop Electron application
+### Development focus
+
+- Clear connection and disconnection state
+- Fail-closed / kill-switch behavior
+- Endpoint, public-IP and region verification
+- Browser leak hardening, including WebRTC-related controls
+- Android system-wide VPN integration
+- Desktop client and packaging
+- User-controlled or explicitly configured endpoints
+- CI, security scanning and reproducible release workflows
+
+## 🌐 Architecture and clients
+
+The repository contains work toward multiple GhostWeb VPN surfaces:
+
+- **Browser:** Chromium/Manifest V3 routing and privacy controls.
+- **Android:** native system-wide VPN work using Android VPN APIs and tunnel components.
+- **Desktop:** cross-platform client and packaging work.
+
+The intended model favors endpoints that users explicitly configure or control rather than silently depending on an unspecified bundled network.
 
 ## 🛡️ Privacy & security
 
-GhostWeb VPN is designed around endpoints you control rather than silently routing traffic through a bundled third-party network. Do not expose unauthenticated proxy listeners publicly, and verify endpoint configuration before relying on it for sensitive traffic.
+Security-sensitive behavior must be treated as unverified until it has passed the relevant implementation, build and runtime gates. In particular, kill-switch behavior, leak prevention, routing correctness and endpoint verification require real-world validation before a stable release claim.
 
-## 📱 Android VPN
+Never expose unauthenticated proxy listeners publicly. Verify your endpoint configuration and network behavior independently when testing development builds.
 
-The Android application uses Android `VpnService` and the WireGuard tunnel library.
+## 📱 Android development
 
 ```sh
 cd android
@@ -66,9 +78,9 @@ gradle assembleDebug
 gradle assembleRelease
 ```
 
-## 🖥️ Desktop
+Successful compilation is one development gate; it is not equivalent to verification of network/privacy behavior.
 
-The `desktop/` application supports Windows, macOS, and Linux packaging.
+## 🖥️ Desktop development
 
 ```sh
 cd desktop
@@ -76,22 +88,24 @@ npm install
 npm run dist
 ```
 
-## 📦 Chromium extension
+## 📦 Browser development
 
-Clone the repository, open `chrome://extensions`, enable Developer mode, select Load unpacked, choose the repository directory, configure an endpoint you control, and verify connectivity.
+For local development, clone the repository, load the unpacked extension in a Chromium-based browser, configure an endpoint you control, and independently verify routing and leak behavior.
 
 ## 🧪 Verification & CI
 
-CI validates source, security, lint, packaging, Android builds, CodeQL, and dependency updates. Release APK artifacts are produced by GitHub Actions when the Android build succeeds.
+The project uses CI for source checks, linting, security analysis, packaging and Android builds. Development continues through the gate sequence **build → test → first real failure → fix → rebuild → verify**.
+
+Before GhostWeb VPN is marked stable, the project should verify at minimum build integrity, connection lifecycle, routing behavior, fail-closed behavior, DNS/WebRTC leak handling where applicable, endpoint/IP verification and release artifacts.
 
 ## 🤝 Contributing
 
-Issues, improvements, security reports, documentation updates, and pull requests are welcome.
+Issues, improvements, security reports, documentation updates and pull requests are welcome.
 
 - [Issues](https://github.com/GhostWebEnterprise/ghost-web-vpn/issues)
 - [Pull requests](https://github.com/GhostWebEnterprise/ghost-web-vpn/pulls)
 - [Releases](https://github.com/GhostWebEnterprise/ghost-web-vpn/releases)
-- [GhostWeb project hub](https://ghostweb.bot.cd)
+- [GhostWeb VPN development page](https://ghostwebenterprise.github.io/vpn.html)
 
 ## 📬 Contact
 
@@ -101,6 +115,6 @@ Questions, feedback or support requests: **ghostweb@ghostbin.cfd**
 
 <div align="center">
 
-**GhostWeb VPN** · private routing for the browser and devices you control 👻
+**GhostWeb VPN** · network privacy under active development 👻
 
 </div>
