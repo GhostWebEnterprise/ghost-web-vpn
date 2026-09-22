@@ -67,14 +67,22 @@ jobs:
       - name: Build signed release APK
         run: gradle assembleRelease --stacktrace --warning-mode=all
 
+      - name: Resolve apksigner
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          test -x "$APKSIGNER" || { echo "::error::apksigner not found in Android SDK Build Tools"; exit 1; }
+          echo "APKSIGNER=$APKSIGNER" >> "$GITHUB_ENV"
+          "$APKSIGNER" version
+
       - name: Verify signed APK
         run: |
           set -euo pipefail
           APK="$(find app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
           test -n "$APK"
           echo "Release APK: $APK"
-          apksigner verify --verbose "$APK"
-          apksigner verify --print-certs "$APK"
+          "$APKSIGNER" verify --verbose "$APK"
+          "$APKSIGNER" verify --print-certs "$APK"
           sha256sum "$APK"
 
       - name: Upload debug APK
@@ -106,13 +114,21 @@ jobs:
           name: ghost-web-vpn-release-apk
           path: release-apk
 
+      - name: Resolve apksigner for release verification
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          test -x "$APKSIGNER" || { echo "::error::apksigner not found in Android SDK Build Tools"; exit 1; }
+          echo "APKSIGNER=$APKSIGNER" >> "$GITHUB_ENV"
+          "$APKSIGNER" version
+
       - name: Verify downloaded APK
         run: |
           set -euo pipefail
           APK="$(find release-apk -type f -name '*.apk' -print -quit)"
           test -n "$APK"
-          apksigner verify --verbose "$APK"
-          apksigner verify --print-certs "$APK"
+          "$APKSIGNER" verify --verbose "$APK"
+          "$APKSIGNER" verify --print-certs "$APK"
           sha256sum "$APK"
 
       - name: Publish GitHub release
