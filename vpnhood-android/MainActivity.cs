@@ -1,6 +1,6 @@
 using Android.App;
 using Android.OS;
-using VpnHood.Client.Device.Android;
+using VpnHood.Core.Client.Devices.Android;
 
 namespace GhostWeb.VpnHood.Android;
 
@@ -10,6 +10,6 @@ public class MainActivity : Activity
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-        _ = AndroidDevice.Current;
+        _ = AndroidDevice.Create();
     }
 }
