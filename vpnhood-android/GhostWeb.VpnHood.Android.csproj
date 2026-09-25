@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android36.1</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>
+    <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="VpnHood.Client" Version="8.2.853" />
+    <PackageReference Include="VpnHood.Client.Device.Android" Version="8.2.853" />
+  </ItemGroup>
+</Project>
