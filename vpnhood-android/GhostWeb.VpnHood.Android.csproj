@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="VpnHood.Client" Version="8.2.853" />
-    <PackageReference Include="VpnHood.Client.Device.Android" Version="8.2.853" />
+    <PackageReference Include="VpnHood.Client" Version="5.0.616-prerelease" />
+    <PackageReference Include="VpnHood.Client.Device.Android" Version="5.0.616-prerelease" />
   </ItemGroup>
 </Project>
