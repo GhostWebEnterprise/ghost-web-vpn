@@ -17,17 +17,29 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  upstream-source-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout GhostWeb migration
+        uses: actions/checkout@v4
+      - name: Checkout current VpnHood upstream
+        uses: actions/checkout@v4
+        with:
+          repository: vpnhood/VpnHood
+          ref: develop
+          path: vpnhood-upstream
+      - name: Record upstream revision and LGPL source notice
+        run: |
+          git -C vpnhood-upstream rev-parse HEAD | tee vpnhood-upstream.sha
+          test -f vpnhood-upstream/LICENSE
+          grep -q "GNU LESSER GENERAL PUBLIC LICENSE" vpnhood-upstream/LICENSE
       - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
       - name: Install Android workload
         run: dotnet workload install android
-      - name: Restore VpnHood Android migration
-        run: dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
-      - name: Build VpnHood Android migration
-        run: dotnet build vpnhood-android/GhostWeb.VpnHood.Android.csproj -c Debug --no-restore
+      - name: Restore official VpnHood Android client
+        run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
+      - name: Build official VpnHood Android client
+        run: dotnet build vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj -c Debug --no-restore
