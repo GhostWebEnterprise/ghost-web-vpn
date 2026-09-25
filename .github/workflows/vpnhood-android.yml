@@ -1,0 +1,33 @@
+name: VpnHood Android Migration
+
+on:
+  push:
+    branches: [migration/vpnhood-android]
+    paths:
+      - "vpnhood-android/**"
+      - ".github/workflows/vpnhood-android.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "vpnhood-android/**"
+      - ".github/workflows/vpnhood-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install Android workload
+        run: dotnet workload install android
+      - name: Restore VpnHood Android migration
+        run: dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
+      - name: Build VpnHood Android migration
+        run: dotnet build vpnhood-android/GhostWeb.VpnHood.Android.csproj -c Debug --no-restore
