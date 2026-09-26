@@ -21,9 +21,9 @@ jobs:
   verified-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Checkout verified VpnHood source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: vpnhood/VpnHood
           ref: ${{ env.VPNHOOD_UPSTREAM_REF }}

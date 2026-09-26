@@ -24,9 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout GhostWeb migration
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Checkout verified VpnHood upstream with required assets
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: vpnhood/VpnHood
           ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
@@ -97,9 +97,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout GhostWeb migration
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Checkout verified VpnHood upstream with required assets
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: vpnhood/VpnHood
           ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
