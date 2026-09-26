@@ -22,17 +22,19 @@ jobs:
     steps:
       - name: Checkout GhostWeb migration
         uses: actions/checkout@v4
-      - name: Checkout current VpnHood upstream
+      - name: Checkout current VpnHood upstream with required assets
         uses: actions/checkout@v4
         with:
           repository: vpnhood/VpnHood
           ref: develop
           path: vpnhood-upstream
+          submodules: recursive
       - name: Record upstream revision and LGPL source notice
         run: |
           git -C vpnhood-upstream rev-parse HEAD | tee vpnhood-upstream.sha
           test -f vpnhood-upstream/LICENSE
           grep -q "GNU LESSER GENERAL PUBLIC LICENSE" vpnhood-upstream/LICENSE
+          test -f vpnhood-upstream/src/AppUi/VpnHood.AppUi.Assets.Classic/build/VpnHood.AppUi.Assets.Classic.targets
       - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
         with:
