@@ -150,7 +150,7 @@ jobs:
           test -n "$ANDROID_KEY_ALIAS" || { echo "::error::ANDROID_KEY_ALIAS is not configured"; exit 1; }
           test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::ANDROID_KEY_PASSWORD is not configured"; exit 1; }
           dotnet publish vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj \
-            -c Release --no-restore \
+            -c Release \
             -p:AndroidKeyStore=true \
             -p:AndroidSigningKeyStore="$RUNNER_TEMP/ghostweb-release.jks" \
             -p:AndroidSigningStorePass="$ANDROID_KEYSTORE_PASSWORD" \
