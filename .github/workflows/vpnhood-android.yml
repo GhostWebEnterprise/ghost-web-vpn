@@ -1,0 +1,185 @@
+name: VpnHood Android Migration
+
+on:
+  push:
+    branches: [migration/vpnhood-android]
+    paths:
+      - "vpnhood-android/**"
+      - ".github/workflows/vpnhood-android.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "vpnhood-android/**"
+      - ".github/workflows/vpnhood-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VPNHOOD_UPSTREAM_REF: b4fec6567badcd0832e5157a6597f2b5b6b20fe0
+
+jobs:
+  upstream-source-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GhostWeb migration
+        uses: actions/checkout@v4
+      - name: Checkout verified VpnHood upstream with required assets
+        uses: actions/checkout@v4
+        with:
+          repository: vpnhood/VpnHood
+          ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
+          path: vpnhood-upstream
+          submodules: recursive
+      - name: Record upstream revision and LGPL source notice
+        run: |
+          git -C vpnhood-upstream rev-parse HEAD | tee vpnhood-upstream.sha
+          test -f vpnhood-upstream/LICENSE
+          grep -q "GNU LESSER GENERAL PUBLIC LICENSE" vpnhood-upstream/LICENSE
+          test -f vpnhood-upstream/src/AppUi/VpnHood.AppUi.Assets.Classic/build/VpnHood.AppUi.Assets.Classic.targets
+      - name: Apply GhostWeb branding to VpnHood Android head
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          csproj = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj')
+          s = csproj.read_text(encoding='utf-8-sig')
+          s = s.replace('<ApplicationId>com.vpnhood.client.android.web.debug</ApplicationId>', '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>')
+          csproj.write_text(s, encoding='utf-8')
+          cfg = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/AppConfigs.cs')
+          s = cfg.read_text()
+          s = s.replace('public const string AppName = IsDebugMode ? "VpnHOOD! CLIENT (DEBUG)" : "VpnHood! CLIENT";', 'public const string AppName = IsDebugMode ? "GhostWeb VPN (DEBUG)" : "GhostWeb VPN";')
+          s = s.replace('public string CompanyName { get; set; } = "VpnHood";', 'public string CompanyName { get; set; } = "GhostWeb Enterprise";')
+          cfg.write_text(s)
+          PY
+          grep -q '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>' vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
+          grep -q 'GhostWeb VPN' vpnhood-upstream/src/Apps/Client/Client.Android.Web/AppConfigs.cs
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install Android workload
+        run: dotnet workload install android
+      - name: Restore official VpnHood Android client
+        run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
+      - name: Build GhostWeb VpnHood Android client
+        run: dotnet build vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj -c Debug --no-restore
+      - name: Locate and inspect debug APK
+        run: |
+          set -euo pipefail
+          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug -type f -name '*.apk' -print -quit)"
+          test -n "$APK" || { echo "::error::Debug build produced no APK"; exit 1; }
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          unzip -l "$APK" | tee apk-contents.txt
+          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
+            echo "::error::Legacy WireGuard native library found in VpnHood APK"
+            exit 1
+          fi
+          sha256sum "$APK" | tee vpnhood-debug.sha256
+      - name: Stage debug evidence
+        run: |
+          mkdir -p vpnhood-debug-artifact
+          cp "$APK" vpnhood-debug-artifact/GhostWeb-VpnHood-debug.apk
+          cp vpnhood-upstream.sha vpnhood-debug-artifact/
+          cp vpnhood-debug.sha256 vpnhood-debug-artifact/
+          cp apk-contents.txt vpnhood-debug-artifact/
+          cp vpnhood-upstream/LICENSE vpnhood-debug-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
+      - name: Upload VpnHood debug APK evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostweb-vpn-vpnhood-debug
+          path: vpnhood-debug-artifact/
+          if-no-files-found: error
+          retention-days: 14
+
+  signed-release-build:
+    needs: upstream-source-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GhostWeb migration
+        uses: actions/checkout@v4
+      - name: Checkout verified VpnHood upstream with required assets
+        uses: actions/checkout@v4
+        with:
+          repository: vpnhood/VpnHood
+          ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
+          path: vpnhood-upstream
+          submodules: recursive
+      - name: Record upstream revision and verify LGPL source
+        run: |
+          git -C vpnhood-upstream rev-parse HEAD | tee vpnhood-upstream.sha
+          grep -q "GNU LESSER GENERAL PUBLIC LICENSE" vpnhood-upstream/LICENSE
+      - name: Apply GhostWeb release branding
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          csproj = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj')
+          s = csproj.read_text(encoding='utf-8-sig')
+          s = s.replace('<ApplicationId>com.vpnhood.client.android.web.debug</ApplicationId>', '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>')
+          csproj.write_text(s, encoding='utf-8')
+          cfg = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/AppConfigs.cs')
+          s = cfg.read_text()
+          s = s.replace('public const string AppName = IsDebugMode ? "VpnHOOD! CLIENT (DEBUG)" : "VpnHood! CLIENT";', 'public const string AppName = IsDebugMode ? "GhostWeb VPN (DEBUG)" : "GhostWeb VPN";')
+          s = s.replace('public string CompanyName { get; set; } = "VpnHood";', 'public string CompanyName { get; set; } = "GhostWeb Enterprise";')
+          cfg.write_text(s)
+          PY
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install Android workload
+        run: dotnet workload install android
+      - name: Restore official VpnHood Android client
+        run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
+      - name: Decode GhostWeb signing keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "::error::ANDROID_KEYSTORE_BASE64 is not configured"; exit 1; }
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ghostweb-release.jks"
+          test -s "$RUNNER_TEMP/ghostweb-release.jks"
+      - name: Build signed GhostWeb VpnHood release APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "::error::ANDROID_KEYSTORE_PASSWORD is not configured"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "::error::ANDROID_KEY_ALIAS is not configured"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::ANDROID_KEY_PASSWORD is not configured"; exit 1; }
+          dotnet publish vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj \
+            -c Release \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="$RUNNER_TEMP/ghostweb-release.jks" \
+            -p:AndroidSigningStorePass="$ANDROID_KEYSTORE_PASSWORD" \
+            -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" \
+            -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD"
+      - name: Verify signed release APK, package and WireGuard absence
+        run: |
+          set -euo pipefail
+          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*Signed.apk' -print -quit)"
+          test -n "$APK" || APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*.apk' -print -quit)"
+          test -n "$APK" || { echo "::error::Release build produced no APK"; exit 1; }
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
+          grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
+          unzip -l "$APK" | tee apk-release-contents.txt
+          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-release-contents.txt; then
+            echo "::error::Legacy WireGuard native library found in release APK"
+            exit 1
+          fi
+          sha256sum "$APK" | tee ghostweb-vpn-vpnhood-release.sha256
+          mkdir -p vpnhood-release-artifact
+          cp "$APK" vpnhood-release-artifact/GhostWeb-VPN-VpnHood-release.apk
+          cp ghostweb-vpn-vpnhood-release.sha256 apksigner.txt apk-badging.txt apk-release-contents.txt vpnhood-upstream.sha vpnhood-release-artifact/
+          cp vpnhood-upstream/LICENSE vpnhood-release-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
+      - name: Upload signed VpnHood release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostweb-vpn-vpnhood-release
+          path: vpnhood-release-artifact/
+          if-no-files-found: error
+          retention-days: 30
