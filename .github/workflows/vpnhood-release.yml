@@ -1,0 +1,126 @@
+name: VpnHood Verified Android Release
+
+on:
+  push:
+    branches: [migration/vpnhood-android, main]
+    paths:
+      - ".github/workflows/vpnhood-release.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/vpnhood-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  VPNHOOD_UPSTREAM_REF: b4fec6567badcd0832e5157a6597f2b5b6b20fe0
+
+jobs:
+  verified-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout verified VpnHood source
+        uses: actions/checkout@v4
+        with:
+          repository: vpnhood/VpnHood
+          ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
+          path: vpnhood-upstream
+          submodules: recursive
+      - name: Verify upstream LGPL source
+        run: |
+          set -euo pipefail
+          git -C vpnhood-upstream rev-parse HEAD | tee vpnhood-upstream.sha
+          test "$(cat vpnhood-upstream.sha)" = "$VPNHOOD_UPSTREAM_REF"
+          grep -q "GNU LESSER GENERAL PUBLIC LICENSE" vpnhood-upstream/LICENSE
+      - name: Apply GhostWeb branding
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          csproj = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj')
+          s = csproj.read_text(encoding='utf-8-sig')
+          s = s.replace('<ApplicationId>com.vpnhood.client.android.web.debug</ApplicationId>', '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>')
+          csproj.write_text(s, encoding='utf-8')
+          cfg = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/AppConfigs.cs')
+          s = cfg.read_text()
+          s = s.replace('public const string AppName = IsDebugMode ? "VpnHOOD! CLIENT (DEBUG)" : "VpnHood! CLIENT";', 'public const string AppName = IsDebugMode ? "GhostWeb VPN (DEBUG)" : "GhostWeb VPN";')
+          s = s.replace('public string CompanyName { get; set; } = "VpnHood";', 'public string CompanyName { get; set; } = "GhostWeb Enterprise";')
+          cfg.write_text(s)
+          PY
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install Android workload
+        run: dotnet workload install android
+      - name: Restore
+        run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
+      - name: Decode signing keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ghostweb-release.jks"
+          test -s "$RUNNER_TEMP/ghostweb-release.jks"
+      - name: Build signed VpnHood APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          dotnet publish vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj \
+            -c Release \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="$RUNNER_TEMP/ghostweb-release.jks" \
+            -p:AndroidSigningStorePass="$ANDROID_KEYSTORE_PASSWORD" \
+            -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" \
+            -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD"
+      - name: Verify and stage exact release APK
+        run: |
+          set -euo pipefail
+          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*Signed.apk' -print -quit)"
+          test -n "$APK"
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
+          grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
+          unzip -l "$APK" | tee apk-contents.txt
+          ! grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt
+          mkdir -p release
+          cp "$APK" release/GhostWeb-VPN-VpnHood-release.apk
+          sha256sum release/GhostWeb-VPN-VpnHood-release.apk | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
+          cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha release/
+          cp vpnhood-upstream/LICENSE release/VPNHOOD-LGPL-2.1-LICENSE.txt
+      - name: Upload verified release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostweb-vpn-vpnhood-public-release
+          path: release/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish public VpnHood release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="vpnhood-android-v1"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create "$TAG" \
+            release/GhostWeb-VPN-VpnHood-release.apk \
+            release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
+            release/VPNHOOD-LGPL-2.1-LICENSE.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "GhostWeb VPN — VpnHood Android" \
+            --notes "GhostWeb VPN Android migrated to official vpnhood/VpnHood source at $VPNHOOD_UPSTREAM_REF. Includes LGPL-2.1 license/source notice evidence. The APK is signed with the existing GhostWeb Android signing identity and verified with apksigner in CI. Legacy WireGuard native libraries are excluded."
+          EXPECTED="$(cut -d' ' -f1 release/GhostWeb-VPN-VpnHood-release.apk.sha256)"
+          ACTUAL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.assets[] | select(.name=="GhostWeb-VPN-VpnHood-release.apk") | .digest' | sed 's/^sha256://')"
+          test -n "$ACTUAL"
+          test "$EXPECTED" = "$ACTUAL"
+          printf 'Verified public release SHA-256: %s\n' "$ACTUAL"
