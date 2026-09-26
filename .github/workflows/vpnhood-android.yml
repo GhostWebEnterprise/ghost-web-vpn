@@ -35,6 +35,22 @@ jobs:
           test -f vpnhood-upstream/LICENSE
           grep -q "GNU LESSER GENERAL PUBLIC LICENSE" vpnhood-upstream/LICENSE
           test -f vpnhood-upstream/src/AppUi/VpnHood.AppUi.Assets.Classic/build/VpnHood.AppUi.Assets.Classic.targets
+      - name: Apply GhostWeb branding to VpnHood Android head
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          csproj = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj')
+          s = csproj.read_text(encoding='utf-8-sig')
+          s = s.replace('<ApplicationId>com.vpnhood.client.android.web.debug</ApplicationId>', '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>')
+          csproj.write_text(s, encoding='utf-8')
+          cfg = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/AppConfigs.cs')
+          s = cfg.read_text()
+          s = s.replace('public const string AppName = IsDebugMode ? "VpnHOOD! CLIENT (DEBUG)" : "VpnHood! CLIENT";', 'public const string AppName = IsDebugMode ? "GhostWeb VPN (DEBUG)" : "GhostWeb VPN";')
+          s = s.replace('public string CompanyName { get; set; } = "VpnHood";', 'public string CompanyName { get; set; } = "GhostWeb Enterprise";')
+          cfg.write_text(s)
+          PY
+          grep -q '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>' vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
+          grep -q 'GhostWeb VPN' vpnhood-upstream/src/Apps/Client/Client.Android.Web/AppConfigs.cs
       - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
         with:
@@ -43,7 +59,7 @@ jobs:
         run: dotnet workload install android
       - name: Restore official VpnHood Android client
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
-      - name: Build official VpnHood Android client
+      - name: Build GhostWeb VpnHood Android client
         run: dotnet build vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj -c Debug --no-restore
       - name: Locate and inspect debug APK
         run: |
