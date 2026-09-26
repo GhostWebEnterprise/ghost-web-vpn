@@ -45,3 +45,30 @@ jobs:
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Build official VpnHood Android client
         run: dotnet build vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj -c Debug --no-restore
+      - name: Locate and inspect debug APK
+        run: |
+          set -euo pipefail
+          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug -type f -name '*.apk' -print -quit)"
+          test -n "$APK" || { echo "::error::Debug build produced no APK"; exit 1; }
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          unzip -l "$APK" | tee apk-contents.txt
+          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
+            echo "::error::Legacy WireGuard native library found in VpnHood APK"
+            exit 1
+          fi
+          sha256sum "$APK" | tee vpnhood-debug.sha256
+      - name: Stage debug evidence
+        run: |
+          mkdir -p vpnhood-debug-artifact
+          cp "$APK" vpnhood-debug-artifact/GhostWeb-VpnHood-debug.apk
+          cp vpnhood-upstream.sha vpnhood-debug-artifact/
+          cp vpnhood-debug.sha256 vpnhood-debug-artifact/
+          cp apk-contents.txt vpnhood-debug-artifact/
+          cp vpnhood-upstream/LICENSE vpnhood-debug-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
+      - name: Upload VpnHood debug APK evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostweb-vpn-vpnhood-debug
+          path: vpnhood-debug-artifact/
+          if-no-files-found: error
+          retention-days: 14
