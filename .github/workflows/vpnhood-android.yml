@@ -16,17 +16,20 @@ on:
 permissions:
   contents: read
 
+env:
+  VPNHOOD_UPSTREAM_REF: b4fec6567badcd0832e5157a6597f2b5b6b20fe0
+
 jobs:
   upstream-source-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout GhostWeb migration
         uses: actions/checkout@v4
-      - name: Checkout current VpnHood upstream with required assets
+      - name: Checkout verified VpnHood upstream with required assets
         uses: actions/checkout@v4
         with:
           repository: vpnhood/VpnHood
-          ref: develop
+          ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
           path: vpnhood-upstream
           submodules: recursive
       - name: Record upstream revision and LGPL source notice
@@ -95,11 +98,11 @@ jobs:
     steps:
       - name: Checkout GhostWeb migration
         uses: actions/checkout@v4
-      - name: Checkout current VpnHood upstream with required assets
+      - name: Checkout verified VpnHood upstream with required assets
         uses: actions/checkout@v4
         with:
           repository: vpnhood/VpnHood
-          ref: develop
+          ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
           path: vpnhood-upstream
           submodules: recursive
       - name: Record upstream revision and verify LGPL source
