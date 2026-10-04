@@ -82,4 +82,4 @@ VPS/cloud server or a machine under your control.
 
 ## Contact
 
-Questions, feedback, or support requests: [ghostweb@ghostbin.cfd](mailto:ghostweb@ghostbin.cfd)
+Questions, feedback, or support requests: [support-ghostweb@proton.me](mailto:support-ghostweb@proton.me)
