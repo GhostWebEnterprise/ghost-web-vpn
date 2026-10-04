@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Ghost Web VPN",
   "version": "0.7.1",
-  "description": "Privacy-focused browser proxy client with fail-closed protection, per-site routing, endpoint profiles and location coherence. Contact: ghostweb@ghostbin.cfd",
+  "description": "Privacy-focused browser proxy client with fail-closed protection, per-site routing, endpoint profiles and location coherence. Contact: support-ghostweb@proton.me",
   "action": { "default_popup": "popup.html" },
   "background": { "service_worker": "background.js", "type": "module" },
   "content_scripts": [
