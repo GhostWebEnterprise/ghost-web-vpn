@@ -94,4 +94,4 @@ public IP is the one websites will see.
 
 ## Contact
 
-Questions, feedback, or support requests: [ghostweb@ghostbin.cfd](mailto:ghostweb@ghostbin.cfd)
+Questions, feedback, or support requests: [support-ghostweb@proton.me](mailto:support-ghostweb@proton.me)
