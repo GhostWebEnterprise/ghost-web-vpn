@@ -18,7 +18,7 @@ Privacy-focused browser routing and VPN tooling for endpoints you control.
 [![Android](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/android.yml?branch=main&style=plastic&label=Android)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/android.yml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/codeql.yml?branch=main&style=plastic&label=CodeQL)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/codeql.yml)
 [![Super-Linter](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/super-linter.yml?branch=main&style=plastic&label=Super-Linter)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/super-linter.yml)
-[![Website](https://img.shields.io/badge/Project%20Hub-ghostwebenterprise.github.io-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostwebenterprise.github.io/vpn.html)
+[![Website](https://img.shields.io/badge/Project%20Hub-ghostwebenterprise.github.io-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostwebenterprise.github.io/vpn.html)\n[![Need support?](https://img.shields.io/badge/Need%20support%3F-Contact%3A%20support--ghostweb%40proton.me-6D4AFF?style=plastic&logo=protonmail&logoColor=white)](mailto:support-ghostweb@proton.me)
 
 </div>
 
