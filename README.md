@@ -18,7 +18,7 @@ Privacy-focused browser routing and VPN tooling for endpoints you control.
 [![Android](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/android.yml?branch=main&style=plastic&label=Android)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/android.yml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/codeql.yml?branch=main&style=plastic&label=CodeQL)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/codeql.yml)
 [![Super-Linter](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/super-linter.yml?branch=main&style=plastic&label=Super-Linter)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/super-linter.yml)
-[![Website](https://img.shields.io/badge/Project%20Hub-ghostwebenterprise.github.io-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostwebenterprise.github.io/vpn.html)[![Need support?](https://img.shields.io/badge/Need%20support%3F-Contact%3A%20support--ghostweb%40proton.me-6D4AFF?style=plastic&logo=protonmail&logoColor=white)](mailto:support-ghostweb@proton.me)
+[![Website](https://img.shields.io/badge/Project%20Hub-ghostweb.bot.cd-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostweb.bot.cd/vpn.html)[![Need support?](https://img.shields.io/badge/Need%20support%3F-Contact%3A%20support--ghostweb%40proton.me-6D4AFF?style=plastic&logo=protonmail&logoColor=white)](mailto:support-ghostweb@proton.me)
 
 </div>
 
@@ -35,7 +35,7 @@ GhostWeb VPN is the network-privacy project in the GhostWeb ecosystem.
 | **GhostWeb AI** | AI client, agents and delivery tooling | Public project |
 | **GhostOS** | Privacy-focused custom Android ROM | **In development** |
 
-**Project hub:** https://ghostwebenterprise.github.io/
+**Project hub:** https://ghostweb.bot.cd/
 
 ## 🚧 Current status
 
@@ -105,7 +105,7 @@ Issues, improvements, security reports, documentation updates and pull requests 
 - [Issues](https://github.com/GhostWebEnterprise/ghost-web-vpn/issues)
 - [Pull requests](https://github.com/GhostWebEnterprise/ghost-web-vpn/pulls)
 - [Releases](https://github.com/GhostWebEnterprise/ghost-web-vpn/releases)
-- [GhostWeb VPN development page](https://ghostwebenterprise.github.io/vpn.html)
+- [GhostWeb VPN development page](https://ghostweb.bot.cd/vpn.html)
 
 ## 📬 Contact
 
