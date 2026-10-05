@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="icon.svg" width="128" alt="GhostWeb VPN icon" />
+<img src="GhostWeb_VPN_logo.png" width="220" alt="GhostWeb VPN logo" />
 
 # GhostWeb VPN
 
