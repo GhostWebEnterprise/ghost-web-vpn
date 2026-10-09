@@ -40,7 +40,7 @@ $("toggle").addEventListener("click",async()=>{const c=await send("getConfig");i
 $("killSwitch").addEventListener("change",async()=>{await persist({killSwitch:$("killSwitch").checked});});
 $("proxyPreset").addEventListener("change",async()=>{const p=findProxyPreset($("proxyPreset").value);if(!p)return;$("scheme").value=p.scheme;$("host").value=p.host;$("port").value=p.port;updateAuthFields(p.scheme);const loc=LOCATION_PRESETS.find(x=>x.city===p.city)||LOCATION_PRESETS.find(x=>x.city==="Oregon"&&p.city==="Oregon");if(loc)await persist({location:{enabled:true,lat:loc.lat,lng:loc.lng,tzId:loc.tzId}});});
 $("locOn").addEventListener("change",async()=>{const c=await send("getConfig");await persist({location:{...currentLocation(c),enabled:$("locOn").checked}});await load();});
-$("locRegion").addEventListener("change",async()=>{const p=LOCATION_PRESETS.find(x=>x.tzId===$("locRegion").value);if(!p)return;const c=await send("getConfig");await persist({location:{enabled:true,lat:p.lat,lng:p.lng,tzId:p.tzId}});await load();});
+$("locRegion").addEventListener("change",async()=>{const p=LOCATION_PRESETS.find(x=>x.tzId===$("locRegion").value);if(!p)return;await persist({location:{enabled:true,lat:p.lat,lng:p.lng,tzId:p.tzId}});await load();});
 $("locDetect").addEventListener("click",sync);
 ["scheme","host","port","username","password"].forEach(id=>$(id).addEventListener("change",async()=>{const c=await send("getConfig");if(c.enabled)await persist();}));
 $("scheme").addEventListener("change",()=>updateAuthFields($("scheme").value));
