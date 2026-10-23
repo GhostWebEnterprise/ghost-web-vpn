@@ -30,6 +30,14 @@ jobs:
         run: dotnet workload install android
       - name: Restore GhostWeb VpnHood Android project
         run: dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
+      - name: Inspect restored VpnHood Android API assembly
+        run: |
+          set -euo pipefail
+          pkg="$HOME/.nuget/packages/vpnhood.client.device.android/5.0.616-prerelease"
+          test -d "$pkg" || { echo "::error::Expected VpnHood Android package missing"; exit 1; }
+          find "$pkg" -type f \( -name '*.dll' -o -name '*.xml' \) -print
+          find "$pkg" -type f -name '*.xml' -exec grep -n -m 12 'AndroidDevice' {} + || true
+          find "$pkg" -type f -name '*.dll' -exec strings {} + | grep -E 'AndroidDevice|VpnHood\.Client\.Device|VpnHood\.Core\.Client' | head -30 || true
       - name: Compile GhostWeb VpnHood Android project
         run: |
           set -euo pipefail
