@@ -10,6 +10,11 @@ on:
     paths:
       - ".github/workflows/vpnhood-release.yml"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'New immutable release tag (vpnhood-android-vN)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -108,12 +113,17 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Publish public VpnHood release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
-          TAG="vpnhood-android-v1"
+          TAG="$RELEASE_TAG"
+          if [[ ! "$TAG" =~ ^vpnhood-android-v[0-9]+$ ]]; then
+            echo "::error::Invalid release tag; expected vpnhood-android-vN"
+            exit 1
+          fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::Release $TAG already exists; refusing to delete or replace signed APK assets"
             exit 1
