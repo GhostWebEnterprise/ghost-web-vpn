@@ -64,6 +64,11 @@ jobs:
           set -euo pipefail
           dotnet workload install android
           dotnet workload install wasm-tools
+      - name: Compile GhostWeb Android client against pinned NuGet APIs
+        run: |
+          set -euo pipefail
+          dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
+          dotnet build vpnhood-android/GhostWeb.VpnHood.Android.csproj --configuration Release --no-restore
       - name: Build pinned VpnHood browser UI
         shell: pwsh
         run: |
