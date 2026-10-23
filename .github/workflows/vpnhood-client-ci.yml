@@ -1,0 +1,46 @@
+name: GhostWeb VpnHood client compile gate
+
+on:
+  push:
+    branches: [main, migration/vpnhood-android]
+    paths:
+      - "vpnhood-android/**"
+      - ".github/workflows/vpnhood-client-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "vpnhood-android/**"
+      - ".github/workflows/vpnhood-client-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ghostweb-client:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install .NET Android workload
+        run: dotnet workload install android
+      - name: Restore GhostWeb VpnHood Android project
+        run: dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
+      - name: Inspect restored VpnHood Android API assembly
+        run: |
+          set -euo pipefail
+          pkg="$HOME/.nuget/packages/vpnhood.client.device.android/5.0.616-prerelease"
+          test -d "$pkg" || { echo "::error::Expected VpnHood Android package missing"; exit 1; }
+          find "$pkg" -type f \( -name '*.dll' -o -name '*.xml' \) -print
+          find "$pkg" -type f -name '*.xml' -exec grep -n -m 12 'AndroidDevice' {} + || true
+          find "$pkg" -type f -name '*.dll' -exec strings {} + | grep -E 'AndroidDevice|VpnHood\.Client\.Device|VpnHood\.Core\.Client' | head -30 || true
+      - name: Compile GhostWeb VpnHood Android project
+        run: |
+          set -euo pipefail
+          dotnet build vpnhood-android/GhostWeb.VpnHood.Android.csproj \
+            --no-restore -c Debug -f net10.0-android36.1
+      # Compilation only: never publish or upload an unverified APK.
