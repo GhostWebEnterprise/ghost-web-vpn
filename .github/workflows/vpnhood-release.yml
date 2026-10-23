@@ -116,9 +116,10 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
-          TAG="${{ inputs.release_tag }}"
+          TAG="$RELEASE_TAG"
           if [[ ! "$TAG" =~ ^vpnhood-android-v[0-9]+$ ]]; then
             echo "::error::Invalid release tag; expected vpnhood-android-vN"
             exit 1
