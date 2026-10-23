@@ -114,7 +114,10 @@ jobs:
         run: |
           set -euo pipefail
           TAG="vpnhood-android-v1"
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists; refusing to delete or replace signed APK assets"
+            exit 1
+          fi
           gh release create "$TAG" \
             release/GhostWeb-VPN-VpnHood-release.apk \
             release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
