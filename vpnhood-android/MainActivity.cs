@@ -1,6 +1,6 @@
 using Android.App;
 using Android.OS;
-using VpnHood.Core.Client.Devices.Android;
+using VpnHood.Client.Device.Droid;
 
 namespace GhostWeb.VpnHood.Android;
 
