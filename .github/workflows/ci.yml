@@ -86,7 +86,7 @@ jobs:
         run: |
           mkdir -p dist
           zip -q -r dist/ghost-web-vpn.zip manifest.json background.js popup.html popup.js popup.css spoof.js presets.js icon.svg icons README.md QUICKSTART.md
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ghost-web-vpn-extension
           path: dist/ghost-web-vpn.zip

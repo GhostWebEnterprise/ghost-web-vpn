@@ -85,7 +85,7 @@ jobs:
           cp apk-contents.txt vpnhood-debug-artifact/
           cp vpnhood-upstream/LICENSE vpnhood-debug-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload VpnHood debug APK evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghostweb-vpn-vpnhood-debug
           path: vpnhood-debug-artifact/
@@ -177,7 +177,7 @@ jobs:
           cp ghostweb-vpn-vpnhood-release.sha256 apksigner.txt apk-badging.txt apk-release-contents.txt vpnhood-upstream.sha vpnhood-release-artifact/
           cp vpnhood-upstream/LICENSE vpnhood-release-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload signed VpnHood release evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghostweb-vpn-vpnhood-release
           path: vpnhood-release-artifact/
