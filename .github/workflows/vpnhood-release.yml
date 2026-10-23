@@ -91,7 +91,10 @@ jobs:
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-contents.txt
-          ! grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt
+          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
+            echo "::error::Unexpected WireGuard native libraries in VpnHood APK"
+            exit 1
+          fi
           mkdir -p release
           cp "$APK" release/GhostWeb-VPN-VpnHood-release.apk
           sha256sum release/GhostWeb-VPN-VpnHood-release.apk | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
