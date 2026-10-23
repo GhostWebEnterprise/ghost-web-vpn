@@ -57,8 +57,24 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
-      - name: Install Android workload
-        run: dotnet workload install android
+      - name: Install Android and browser workloads
+        run: |
+          set -euo pipefail
+          dotnet workload install android
+          dotnet workload install wasm-tools
+      - name: Build pinned VpnHood browser UI
+        shell: pwsh
+        run: |
+          & ./vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/_publish.ps1
+          if ($LASTEXITCODE -ne 0) { throw "VpnHood browser publish failed" }
+      - name: Verify browser bundle before Android build
+        run: |
+          set -euo pipefail
+          BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
+          test -s "$BROWSER_ZIP"
+          unzip -tq "$BROWSER_ZIP"
+          unzip -Z1 "$BROWSER_ZIP" | grep -Eq '(^|/)index\.html$'
+          sha256sum "$BROWSER_ZIP" | tee vpnhood-browser.sha256
       - name: Restore
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Decode signing keystore
@@ -96,6 +112,12 @@ jobs:
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-contents.txt
+          BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
+          WEB_ROOT_PATH="$(unzip -Z1 "$APK" | grep -E '(^|/)web-root\.zip$' | head -n 1)"
+          test -n "$WEB_ROOT_PATH" || { echo "::error::Missing browser UI in signed APK"; exit 1; }
+          EXPECTED_WEB_ROOT="$(sha256sum "$BROWSER_ZIP" | cut -d' ' -f1)"
+          ACTUAL_WEB_ROOT="$(unzip -p "$APK" "$WEB_ROOT_PATH" | sha256sum | cut -d' ' -f1)"
+          test "$EXPECTED_WEB_ROOT" = "$ACTUAL_WEB_ROOT" || { echo "::error::Browser UI APK asset digest mismatch"; exit 1; }
           if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
             echo "::error::Unexpected WireGuard native libraries in VpnHood APK"
             exit 1
@@ -103,7 +125,7 @@ jobs:
           mkdir -p release
           cp "$APK" release/GhostWeb-VPN-VpnHood-release.apk
           sha256sum release/GhostWeb-VPN-VpnHood-release.apk | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
-          cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha release/
+          cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha vpnhood-browser.sha256 release/
           cp vpnhood-upstream/LICENSE release/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload verified release evidence
         uses: actions/upload-artifact@v4
