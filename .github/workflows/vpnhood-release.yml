@@ -170,4 +170,25 @@ jobs:
           test -n "$ACTUAL"
           test "$EXPECTED" = "$ACTUAL"
           printf 'Verified staged release SHA-256: %s\n' "$ACTUAL"
+          # Verify the actual downloaded bytes and published checksum manifest
+          # before making the draft release public. A digest field alone does
+          # not prove that the manifest asset matches the signed APK.
+          mkdir -p verified-download/release
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'GhostWeb-VPN-VpnHood-release.apk*' \
+            --dir verified-download/release
+          cmp -s release/GhostWeb-VPN-VpnHood-release.apk verified-download/release/GhostWeb-VPN-VpnHood-release.apk || {
+            echo "::error::Downloaded release APK differs from verified signed build"
+            exit 1
+          }
+          cmp -s release/GhostWeb-VPN-VpnHood-release.apk.sha256 verified-download/release/GhostWeb-VPN-VpnHood-release.apk.sha256 || {
+            echo "::error::Downloaded checksum manifest differs from verified build"
+            exit 1
+          }
+          (cd verified-download && sha256sum --check release/GhostWeb-VPN-VpnHood-release.apk.sha256)
+          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true || {
+            echo "::error::Release was published before verification completed"
+            exit 1
+          }
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
