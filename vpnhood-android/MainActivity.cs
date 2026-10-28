@@ -1,9 +1,11 @@
 using Android.App;
+using Android.Content;
 using Android.OS;
 using Android.Views;
 using Android.Widget;
 using VpnHood.Client;
 using VpnHood.Client.Device.Droid;
+using VpnHood.Common.Tokens;
 
 namespace GhostWeb.VpnHood.Android;
 
@@ -42,8 +44,8 @@ public class MainActivity : Activity
         _accessKeyInput = new EditText(this)
         {
             Hint = "VpnHood access key",
-            SingleLine = true
         };
+        _accessKeyInput.SetSingleLine(true);
         layout.AddView(_accessKeyInput, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MatchParent,
             ViewGroup.LayoutParams.WrapContent));
@@ -62,9 +64,10 @@ public class MainActivity : Activity
     {
         if (_client is not null)
         {
-            _client.OnStateChanged -= OnClientStateChanged;
-            _client.Dispose();
+            var connectedClient = _client;
             _client = null;
+            connectedClient.StateChanged -= OnClientStateChanged;
+            await connectedClient.DisposeAsync();
             UpdateStatus("Disconnected");
             return;
         }
@@ -83,14 +86,14 @@ public class MainActivity : Activity
         {
             UpdateStatus("Preparing VPN permission and packet capture…");
             var token = Token.FromAccessKey(accessKey);
-            var packetCapture = await _device!.CreatePacketCapture();
+            var packetCapture = await _device!.CreatePacketCapture(null);
             var client = new VpnHoodClient(
                 packetCapture,
                 GetOrCreateClientId(),
                 token,
                 new ClientOptions());
 
-            client.OnStateChanged += OnClientStateChanged;
+            client.StateChanged += OnClientStateChanged;
             _client = client;
             UpdateStatus($"VPN state: {client.State}");
             await client.Connect();
@@ -98,8 +101,12 @@ public class MainActivity : Activity
         }
         catch (Exception ex)
         {
-            _client?.Dispose();
-            _client = null;
+            if (_client is not null)
+            {
+                _client.StateChanged -= OnClientStateChanged;
+                await _client.DisposeAsync();
+                _client = null;
+            }
             UpdateStatus($"Connection failed: {ex.Message}");
         }
         finally
@@ -119,16 +126,16 @@ public class MainActivity : Activity
             : $"VPN state: {_client.State}"));
     }
 
-    private Guid GetOrCreateClientId()
+    private string GetOrCreateClientId()
     {
         var preferences = GetSharedPreferences("ghostweb-vpn", FileCreationMode.Private)!;
         var stored = preferences.GetString("client-id", null);
         if (Guid.TryParse(stored, out var clientId))
-            return clientId;
+            return clientId.ToString("D");
 
         clientId = Guid.NewGuid();
-        preferences.Edit()?.PutString("client-id", clientId.ToString()).Apply();
-        return clientId;
+        preferences.Edit()?.PutString("client-id", clientId.ToString("D")).Apply();
+        return clientId.ToString("D");
     }
 
     private void UpdateStatus(string message)
@@ -143,9 +150,10 @@ public class MainActivity : Activity
     {
         if (_client is not null)
         {
-            _client.OnStateChanged -= OnClientStateChanged;
-            _client.Dispose();
+            var client = _client;
             _client = null;
+            client.StateChanged -= OnClientStateChanged;
+            _ = client.DisposeAsync();
         }
 
         base.OnDestroy();
