@@ -1,3 +1,5 @@
+---
+# yamllint disable rule:line-length
 name: VpnHood Verified Android Release
 
 on:
@@ -90,13 +92,13 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          apks=(vpnhood-android/bin/Release/net10.0-android36.1/publish/*.apk)
-          test "\${#apks[@]}" -eq 1 || {
-            echo "::error::Expected exactly one published APK; found \${#apks[@]}"
+          apks=(vpnhood-android/bin/Release/net10.0-android36.1/publish/*-Signed.apk)
+          test "${#apks[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed published APK; found ${#apks[@]}"
             find vpnhood-android/bin/Release -type f -name '*.apk' -print || true
             exit 1
           }
-          APK="\${apks[0]}"
+          APK="${apks[0]}"
           [[ "$(basename "$APK")" != *unsigned* ]] || { echo "::error::Unsigned APK refused"; exit 1; }
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable"; exit 1; }
