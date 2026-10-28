@@ -161,7 +161,7 @@ public class MainActivity : Activity
         }
         catch (Exception ex)
         {
-            Android.Util.Log.Error("GhostWebVpn", $"VpnHood client cleanup failed ({ex.GetType().Name}).");
+            global::Android.Util.Log.Error("GhostWebVpn", $"VpnHood client cleanup failed ({ex.GetType().Name}).");
             return false;
         }
     }
