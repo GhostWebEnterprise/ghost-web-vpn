@@ -4,7 +4,6 @@ using Android.Views;
 using Android.Widget;
 using VpnHood.Client;
 using VpnHood.Client.Device.Droid;
-using VpnHood.Core.Common.Tokens;
 
 namespace GhostWeb.VpnHood.Android;
 
