@@ -60,6 +60,20 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Install Android workload
         run: dotnet workload install android
+      - name: Install VpnHood browser UI workload
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        run: dotnet workload install wasm-tools
+      - name: Publish required VpnHood browser UI assets
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ./_publish.ps1
+          if ($LASTEXITCODE -ne 0) { throw "VpnHood browser UI publish failed." }
+          $asset = "./bin/avalonia-browser.zip"
+          if (!(Test-Path $asset) -or (Get-Item $asset).Length -eq 0) {
+            throw "Required VpnHood browser UI asset was not produced."
+          }
       - name: Restore official VpnHood Android client
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Build GhostWeb VpnHood Android client
@@ -133,6 +147,20 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Install Android workload
         run: dotnet workload install android
+      - name: Install VpnHood browser UI workload
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        run: dotnet workload install wasm-tools
+      - name: Publish required VpnHood browser UI assets
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ./_publish.ps1
+          if ($LASTEXITCODE -ne 0) { throw "VpnHood browser UI publish failed." }
+          $asset = "./bin/avalonia-browser.zip"
+          if (!(Test-Path $asset) -or (Get-Item $asset).Length -eq 0) {
+            throw "Required VpnHood browser UI asset was not produced."
+          }
       - name: Restore official VpnHood Android client
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Decode GhostWeb signing keystore
