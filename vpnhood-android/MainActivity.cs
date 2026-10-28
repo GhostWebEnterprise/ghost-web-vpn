@@ -65,10 +65,31 @@ public class MainActivity : Activity
         if (_client is not null)
         {
             var connectedClient = _client;
-            _client = null;
+            if (_connectButton is not null)
+                _connectButton.Enabled = false;
+
             connectedClient.StateChanged -= OnClientStateChanged;
-            await connectedClient.DisposeAsync();
-            UpdateStatus("Disconnected");
+            try
+            {
+                if (await TryDisposeClientAsync(connectedClient))
+                {
+                    if (ReferenceEquals(_client, connectedClient))
+                        _client = null;
+                    UpdateStatus("Disconnected");
+                }
+                else
+                {
+                    UpdateStatus("Disconnect failed; VPN state is unknown. Retry disconnect before reconnecting.");
+                }
+            }
+            finally
+            {
+                if (_connectButton is not null)
+                {
+                    _connectButton.Enabled = true;
+                    _connectButton.Text = _client is null ? "Connect" : "Disconnect";
+                }
+            }
             return;
         }
 
@@ -99,15 +120,27 @@ public class MainActivity : Activity
             await client.Connect();
             UpdateStatus($"VPN state: {client.State}");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            if (_client is not null)
+            var failedClient = _client;
+            if (failedClient is not null)
             {
-                _client.StateChanged -= OnClientStateChanged;
-                await _client.DisposeAsync();
-                _client = null;
+                failedClient.StateChanged -= OnClientStateChanged;
+                if (await TryDisposeClientAsync(failedClient))
+                {
+                    if (ReferenceEquals(_client, failedClient))
+                        _client = null;
+                    UpdateStatus("Connection failed. Check the access key and server, then retry.");
+                }
+                else
+                {
+                    UpdateStatus("Connection failed and cleanup failed; VPN state is unknown. Retry disconnect before reconnecting.");
+                }
             }
-            UpdateStatus($"Connection failed: {ex.Message}");
+            else
+            {
+                UpdateStatus("Connection failed. Check the access key and server, then retry.");
+            }
         }
         finally
         {
@@ -116,6 +149,20 @@ public class MainActivity : Activity
                 _connectButton.Enabled = true;
                 _connectButton.Text = _client is null ? "Connect" : "Disconnect";
             }
+        }
+    }
+
+    private async Task<bool> TryDisposeClientAsync(VpnHoodClient client)
+    {
+        try
+        {
+            await client.DisposeAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Android.Util.Log.Error("GhostWebVpn", $"VpnHood client cleanup failed ({ex.GetType().Name}).");
+            return false;
         }
     }
 
@@ -155,7 +202,7 @@ public class MainActivity : Activity
             var client = _client;
             _client = null;
             client.StateChanged -= OnClientStateChanged;
-            _ = client.DisposeAsync();
+            _ = TryDisposeClientAsync(client);
         }
 
         base.OnDestroy();
