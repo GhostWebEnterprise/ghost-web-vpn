@@ -136,7 +136,7 @@ public class MainActivity : Activity
         clientId = Guid.NewGuid();
         var editor = preferences.Edit();
         if (editor is not null)
-            editor.PutString("client-id", clientId.ToString("D")).Apply();
+            editor.PutString("client-id", clientId.ToString("D"))?.Apply();
         return clientId.ToString("D");
     }
 
