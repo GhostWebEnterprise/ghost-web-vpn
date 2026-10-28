@@ -5,12 +5,13 @@ using Android.Views;
 using Android.Widget;
 using VpnHood.Client;
 using VpnHood.Client.Device.Droid;
+using VpnHood.Client.Device.Droid.ActivityEvents;
 using VpnHood.Common.Tokens;
 
 namespace GhostWeb.VpnHood.Android;
 
 [Activity(Label = "GhostWeb VPN", MainLauncher = true, Exported = true)]
-public class MainActivity : Activity
+public class MainActivity : ActivityEvent
 {
     private AndroidDevice? _device;
     private VpnHoodClient? _client;
@@ -107,7 +108,7 @@ public class MainActivity : Activity
         {
             UpdateStatus("Preparing VPN permission and packet capture…");
             var token = Token.FromAccessKey(accessKey);
-            var packetCapture = await _device!.CreatePacketCapture(null);
+            var packetCapture = await _device!.CreatePacketCapture(new AndroidUiContext(this));
             var client = new VpnHoodClient(
                 packetCapture,
                 GetOrCreateClientId(),
