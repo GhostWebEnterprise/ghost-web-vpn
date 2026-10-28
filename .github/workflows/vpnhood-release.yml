@@ -112,7 +112,8 @@ jobs:
           fi
           mkdir -p release
           cp "$APK" release/GhostWeb-VPN-VpnHood-release.apk
-          sha256sum release/GhostWeb-VPN-VpnHood-release.apk | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
+          (cd release && sha256sum GhostWeb-VPN-VpnHood-release.apk) | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
+          (cd release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
           cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha release/
           cp vpnhood-upstream/LICENSE release/VPNHOOD-LGPL-2.1-LICENSE.txt
           cp vpnhood-android/GhostWeb.VpnHood.Android.csproj release/
