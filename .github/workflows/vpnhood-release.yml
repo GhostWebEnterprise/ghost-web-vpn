@@ -131,7 +131,7 @@ jobs:
           fi
           mkdir -p release
           cp "$APK" release/GhostWeb-VPN-VpnHood-release.apk
-          sha256sum release/GhostWeb-VPN-VpnHood-release.apk | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
+          (cd release && sha256sum GhostWeb-VPN-VpnHood-release.apk) | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
           cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha vpnhood-browser.sha256 release/
           cp vpnhood-upstream/LICENSE release/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload verified release evidence
@@ -186,7 +186,7 @@ jobs:
             echo "::error::Downloaded checksum manifest differs from verified build"
             exit 1
           }
-          (cd verified-download && sha256sum --check release/GhostWeb-VPN-VpnHood-release.apk.sha256)
+          (cd verified-download/release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
           test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true || {
             echo "::error::Release was published before verification completed"
             exit 1
