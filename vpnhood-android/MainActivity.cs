@@ -134,7 +134,9 @@ public class MainActivity : Activity
             return clientId.ToString("D");
 
         clientId = Guid.NewGuid();
-        preferences.Edit()?.PutString("client-id", clientId.ToString("D")).Apply();
+        var editor = preferences.Edit();
+        if (editor is not null)
+            editor.PutString("client-id", clientId.ToString("D")).Apply();
         return clientId.ToString("D");
     }
 
