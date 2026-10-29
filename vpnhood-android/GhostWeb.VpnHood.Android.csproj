@@ -3,6 +3,8 @@
     <TargetFramework>net10.0-android36.1</TargetFramework>
     <OutputType>Exe</OutputType>
     <ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>
+    <ApplicationVersion>854</ApplicationVersion>
+    <ApplicationDisplayVersion>8.2.854</ApplicationDisplayVersion>
     <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
