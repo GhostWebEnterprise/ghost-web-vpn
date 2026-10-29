@@ -145,6 +145,22 @@ jobs:
             echo "::error::Release $TAG already exists; refusing to modify existing assets"
             exit 1
           fi
+          # Create the immutable tag only after the signed APK and local checksum passed.
+          # On retries, reuse the tag only if it resolves to this exact workflow commit.
+          remote_tags="$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
+          tag_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG" '$2 == ref {print $1}')"
+          peeled_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG^{}" '$2 == ref {print $1}')"
+          resolved_tag_sha="${peeled_sha:-$tag_sha}"
+          if [ -n "$resolved_tag_sha" ]; then
+            if [ "$resolved_tag_sha" != "$GITHUB_SHA" ]; then
+              echo "::error::Tag $TAG already exists at a different commit; refusing to move it"
+              exit 1
+            fi
+            echo "Tag $TAG already points to this workflow commit; reusing it"
+          else
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$TAG"
+          fi
           gh release create "$TAG" --draft --verify-tag \
             --repo "$GITHUB_REPOSITORY" \
             --title "GhostWeb VPN — VpnHood Android" \
