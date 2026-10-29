@@ -60,6 +60,20 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Install Android workload
         run: dotnet workload install android
+      - name: Install VpnHood browser UI workload
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        run: dotnet workload install wasm-tools
+      - name: Publish required VpnHood browser UI assets
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ./_publish.ps1
+          if ($LASTEXITCODE -ne 0) { throw "VpnHood browser UI publish failed." }
+          $asset = "./bin/avalonia-browser.zip"
+          if (!(Test-Path $asset) -or (Get-Item $asset).Length -eq 0) {
+            throw "Required VpnHood browser UI asset was not produced."
+          }
       - name: Restore official VpnHood Android client
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Build GhostWeb VpnHood Android client
@@ -75,13 +89,17 @@ jobs:
             echo "::error::Legacy WireGuard native library found in VpnHood APK"
             exit 1
           fi
-          sha256sum "$APK" | tee vpnhood-debug.sha256
+          sha256sum "$APK"
       - name: Stage debug evidence
         run: |
           mkdir -p vpnhood-debug-artifact
           cp "$APK" vpnhood-debug-artifact/GhostWeb-VpnHood-debug.apk
+          (
+            cd vpnhood-debug-artifact
+            sha256sum GhostWeb-VpnHood-debug.apk | tee GhostWeb-VpnHood-debug.apk.sha256
+            sha256sum --check GhostWeb-VpnHood-debug.apk.sha256
+          )
           cp vpnhood-upstream.sha vpnhood-debug-artifact/
-          cp vpnhood-debug.sha256 vpnhood-debug-artifact/
           cp apk-contents.txt vpnhood-debug-artifact/
           cp vpnhood-upstream/LICENSE vpnhood-debug-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload VpnHood debug APK evidence
@@ -129,6 +147,20 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Install Android workload
         run: dotnet workload install android
+      - name: Install VpnHood browser UI workload
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        run: dotnet workload install wasm-tools
+      - name: Publish required VpnHood browser UI assets
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ./_publish.ps1
+          if ($LASTEXITCODE -ne 0) { throw "VpnHood browser UI publish failed." }
+          $asset = "./bin/avalonia-browser.zip"
+          if (!(Test-Path $asset) -or (Get-Item $asset).Length -eq 0) {
+            throw "Required VpnHood browser UI asset was not produced."
+          }
       - name: Restore official VpnHood Android client
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Decode GhostWeb signing keystore
@@ -171,10 +203,14 @@ jobs:
             echo "::error::Legacy WireGuard native library found in release APK"
             exit 1
           fi
-          sha256sum "$APK" | tee ghostweb-vpn-vpnhood-release.sha256
           mkdir -p vpnhood-release-artifact
           cp "$APK" vpnhood-release-artifact/GhostWeb-VPN-VpnHood-release.apk
-          cp ghostweb-vpn-vpnhood-release.sha256 apksigner.txt apk-badging.txt apk-release-contents.txt vpnhood-upstream.sha vpnhood-release-artifact/
+          (
+            cd vpnhood-release-artifact
+            sha256sum GhostWeb-VPN-VpnHood-release.apk | tee GhostWeb-VPN-VpnHood-release.apk.sha256
+            sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256
+          )
+          cp apksigner.txt apk-badging.txt apk-release-contents.txt vpnhood-upstream.sha vpnhood-release-artifact/
           cp vpnhood-upstream/LICENSE vpnhood-release-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload signed VpnHood release evidence
         uses: actions/upload-artifact@v4
