@@ -1,3 +1,5 @@
+---
+# yamllint disable rule:line-length
 name: VpnHood Verified Android Release
 
 on:
@@ -27,104 +29,83 @@ env:
 jobs:
   verified-release:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout verified VpnHood source
+
+      - name: Checkout verified VpnHood source and license
         uses: actions/checkout@v4
         with:
           repository: vpnhood/VpnHood
           ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
           path: vpnhood-upstream
           submodules: recursive
-      - name: Verify upstream LGPL source
+
+      - name: Verify pinned VpnHood source and LGPL license
         run: |
           set -euo pipefail
           git -C vpnhood-upstream rev-parse HEAD | tee vpnhood-upstream.sha
           test "$(cat vpnhood-upstream.sha)" = "$VPNHOOD_UPSTREAM_REF"
           grep -q "GNU LESSER GENERAL PUBLIC LICENSE" vpnhood-upstream/LICENSE
-      - name: Apply GhostWeb branding
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          csproj = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj')
-          s = csproj.read_text(encoding='utf-8-sig')
-          s = s.replace('<ApplicationId>com.vpnhood.client.android.web.debug</ApplicationId>', '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>')
-          csproj.write_text(s, encoding='utf-8')
-          cfg = Path('vpnhood-upstream/src/Apps/Client/Client.Android.Web/AppConfigs.cs')
-          s = cfg.read_text()
-          s = s.replace('public const string AppName = IsDebugMode ? "VpnHOOD! CLIENT (DEBUG)" : "VpnHood! CLIENT";', 'public const string AppName = IsDebugMode ? "GhostWeb VPN (DEBUG)" : "GhostWeb VPN";')
-          s = s.replace('public string CompanyName { get; set; } = "VpnHood";', 'public string CompanyName { get; set; } = "GhostWeb Enterprise";')
-          cfg.write_text(s)
-          PY
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
-      - name: Install Android and browser workloads
-        run: |
-          set -euo pipefail
-          dotnet workload install android
-          dotnet workload install wasm-tools
-      - name: Compile GhostWeb Android client against pinned NuGet APIs
-        run: |
-          set -euo pipefail
-          dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
-          dotnet build vpnhood-android/GhostWeb.VpnHood.Android.csproj --configuration Release --no-restore
-      - name: Build pinned VpnHood browser UI
-        shell: pwsh
-        run: |
-          & ./vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/_publish.ps1
-          if ($LASTEXITCODE -ne 0) { throw "VpnHood browser publish failed" }
-      - name: Verify browser bundle before Android build
-        run: |
-          set -euo pipefail
-          BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
-          test -s "$BROWSER_ZIP"
-          unzip -tq "$BROWSER_ZIP"
-          unzip -Z1 "$BROWSER_ZIP" | grep -Eq '(^|/)index\.html$'
-          sha256sum "$BROWSER_ZIP" | tee vpnhood-browser.sha256
-      - name: Restore
-        run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
-      - name: Decode signing keystore
+
+      - name: Install Android workload
+        run: dotnet workload install android
+
+      - name: Restore the GhostWeb VpnHood Android client
+        run: dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
+
+      - name: Decode required Android signing keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
-          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "::error::ANDROID_KEYSTORE_BASE64 is required"; exit 1; }
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ghostweb-release.jks"
           test -s "$RUNNER_TEMP/ghostweb-release.jks"
-      - name: Build signed VpnHood APK
+
+      - name: Build signed GhostWeb VpnHood client APK
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_ALIAS"
-          test -n "$ANDROID_KEY_PASSWORD"
-          dotnet publish vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj \
-            -c Release \
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "::error::ANDROID_KEYSTORE_PASSWORD is required"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "::error::ANDROID_KEY_ALIAS is required"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::ANDROID_KEY_PASSWORD is required"; exit 1; }
+          dotnet publish vpnhood-android/GhostWeb.VpnHood.Android.csproj \
+            --configuration Release \
+            --framework net10.0-android36.1 \
             -p:AndroidKeyStore=true \
             -p:AndroidSigningKeyStore="$RUNNER_TEMP/ghostweb-release.jks" \
             -p:AndroidSigningStorePass="$ANDROID_KEYSTORE_PASSWORD" \
             -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" \
-            -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD"
-      - name: Verify and stage exact release APK
+            -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD" \
+            -p:AndroidPackageFormat=apk
+
+      - name: Verify and stage the exact client APK
+        shell: bash
         run: |
           set -euo pipefail
-          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*Signed.apk' -print -quit)"
-          test -n "$APK"
+          shopt -s nullglob
+          apks=(vpnhood-android/bin/Release/net10.0-android36.1/publish/*-Signed.apk)
+          test "${#apks[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed published APK; found ${#apks[@]}"
+            find vpnhood-android/bin/Release -type f -name '*.apk' -print || true
+            exit 1
+          }
+          APK="${apks[0]}"
+          [[ "$(basename "$APK")" != *unsigned* ]] || { echo "::error::Unsigned APK refused"; exit 1; }
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable"; exit 1; }
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
-          unzip -l "$APK" | tee apk-contents.txt
-          BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
-          WEB_ROOT_PATH="$(unzip -Z1 "$APK" | grep -E '(^|/)web-root\.zip$' | head -n 1)"
-          test -n "$WEB_ROOT_PATH" || { echo "::error::Missing browser UI in signed APK"; exit 1; }
-          EXPECTED_WEB_ROOT="$(sha256sum "$BROWSER_ZIP" | cut -d' ' -f1)"
-          ACTUAL_WEB_ROOT="$(unzip -p "$APK" "$WEB_ROOT_PATH" | sha256sum | cut -d' ' -f1)"
-          test "$EXPECTED_WEB_ROOT" = "$ACTUAL_WEB_ROOT" || { echo "::error::Browser UI APK asset digest mismatch"; exit 1; }
+          unzip -l "$APK" > apk-contents.txt
           if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
             echo "::error::Unexpected WireGuard native libraries in VpnHood APK"
             exit 1
@@ -132,8 +113,14 @@ jobs:
           mkdir -p release
           cp "$APK" release/GhostWeb-VPN-VpnHood-release.apk
           (cd release && sha256sum GhostWeb-VPN-VpnHood-release.apk) | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
-          cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha vpnhood-browser.sha256 release/
+          (cd release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
+          cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha release/
           cp vpnhood-upstream/LICENSE release/VPNHOOD-LGPL-2.1-LICENSE.txt
+          cp vpnhood-android/GhostWeb.VpnHood.Android.csproj release/
+          grep -E 'PackageReference Include="VpnHood\.(Client|Client\.Device\.Android)"' vpnhood-android/GhostWeb.VpnHood.Android.csproj \
+            > release/VPNHOOD-CLIENT-DEPENDENCIES.txt
+          test -s release/VPNHOOD-CLIENT-DEPENDENCIES.txt
+
       - name: Upload verified release evidence
         uses: actions/upload-artifact@v4
         with:
@@ -141,7 +128,8 @@ jobs:
           path: release/
           if-no-files-found: error
           retention-days: 90
-      - name: Publish public VpnHood release
+
+      - name: Publish immutable VpnHood release only after byte verification
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -154,41 +142,58 @@ jobs:
             exit 1
           fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Release $TAG already exists; refusing to delete or replace signed APK assets"
+            echo "::error::Release $TAG already exists; refusing to modify existing assets"
             exit 1
           fi
-          gh release create "$TAG" \
-            --draft \
-            release/GhostWeb-VPN-VpnHood-release.apk \
-            release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
-            release/VPNHOOD-LGPL-2.1-LICENSE.txt \
+          # Create the immutable tag only after the signed APK and local checksum passed.
+          # On retries, reuse the tag only if it resolves to this exact workflow commit.
+          remote_tags="$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
+          tag_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG" '$2 == ref {print $1}')"
+          peeled_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG^{}" '$2 == ref {print $1}')"
+          resolved_tag_sha="${peeled_sha:-$tag_sha}"
+          if [ -n "$resolved_tag_sha" ]; then
+            if [ "$resolved_tag_sha" != "$GITHUB_SHA" ]; then
+              echo "::error::Tag $TAG already exists at a different commit; refusing to move it"
+              exit 1
+            fi
+            echo "Tag $TAG already points to this workflow commit; reusing it"
+          else
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$TAG"
+          fi
+          gh release create "$TAG" --draft --verify-tag \
             --repo "$GITHUB_REPOSITORY" \
             --title "GhostWeb VPN — VpnHood Android" \
-            --notes "GhostWeb VPN Android migrated to official vpnhood/VpnHood source at $VPNHOOD_UPSTREAM_REF. Includes LGPL-2.1 license/source notice evidence. The APK is signed with the existing GhostWeb Android signing identity and verified with apksigner in CI. Legacy WireGuard native libraries are excluded."
+            --notes "GhostWeb VPN Android client built against VpnHood.Client and VpnHood.Client.Device.Android 5.0.616-prerelease. Source/license evidence is attached. The signed APK is verified with apksigner and SHA-256 in CI."
+          gh release upload "$TAG" \
+            release/GhostWeb-VPN-VpnHood-release.apk \
+            release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
+            release/apksigner.txt \
+            release/VPNHOOD-CLIENT-DEPENDENCIES.txt \
+            release/VPNHOOD-LGPL-2.1-LICENSE.txt \
+            --repo "$GITHUB_REPOSITORY"
+          mkdir -p verified-release
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'GhostWeb-VPN-VpnHood-release.apk' --dir verified-release
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'GhostWeb-VPN-VpnHood-release.apk.sha256' --dir verified-release
+          cmp -s release/GhostWeb-VPN-VpnHood-release.apk \
+            verified-release/GhostWeb-VPN-VpnHood-release.apk || {
+              echo "::error::Downloaded release APK differs from verified build"; exit 1;
+            }
+          cmp -s release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
+            verified-release/GhostWeb-VPN-VpnHood-release.apk.sha256 || {
+              echo "::error::Downloaded checksum manifest differs"; exit 1;
+            }
+          (cd verified-release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
           EXPECTED="$(cut -d' ' -f1 release/GhostWeb-VPN-VpnHood-release.apk.sha256)"
-          ACTUAL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.assets[] | select(.name=="GhostWeb-VPN-VpnHood-release.apk") | .digest' | sed 's/^sha256://')"
-          test -n "$ACTUAL"
-          test "$EXPECTED" = "$ACTUAL"
-          printf 'Verified staged release SHA-256: %s\n' "$ACTUAL"
-          # Verify the actual downloaded bytes and published checksum manifest
-          # before making the draft release public. A digest field alone does
-          # not prove that the manifest asset matches the signed APK.
-          mkdir -p verified-download/release
-          gh release download "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern 'GhostWeb-VPN-VpnHood-release.apk*' \
-            --dir verified-download/release
-          cmp -s release/GhostWeb-VPN-VpnHood-release.apk verified-download/release/GhostWeb-VPN-VpnHood-release.apk || {
-            echo "::error::Downloaded release APK differs from verified signed build"
-            exit 1
-          }
-          cmp -s release/GhostWeb-VPN-VpnHood-release.apk.sha256 verified-download/release/GhostWeb-VPN-VpnHood-release.apk.sha256 || {
-            echo "::error::Downloaded checksum manifest differs from verified build"
-            exit 1
-          }
-          (cd verified-download/release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
-          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true || {
-            echo "::error::Release was published before verification completed"
-            exit 1
+          ACTUAL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+            --jq '.assets[] | select(.name=="GhostWeb-VPN-VpnHood-release.apk") | .digest' \
+            | sed 's/^sha256://')"
+          test -n "$ACTUAL" && test "$EXPECTED" = "$ACTUAL" || {
+            echo "::error::GitHub release digest does not match verified APK"; exit 1;
           }
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+          test "$IS_DRAFT" = false || { echo "::error::Release remains draft"; exit 1; }
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets

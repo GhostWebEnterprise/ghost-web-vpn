@@ -38,6 +38,18 @@ jobs:
           find "$pkg" -type f \( -name '*.dll' -o -name '*.xml' \) -print
           find "$pkg" -type f -name '*.xml' -exec grep -n -m 12 'AndroidDevice' {} + || true
           find "$pkg" -type f -name '*.dll' -exec strings {} + | grep -E 'AndroidDevice|VpnHood\.Client\.Device|VpnHood\.Core\.Client' | head -30 || true
+      - name: Inspect pinned VpnHood client API signatures
+        run: |
+          set -euo pipefail
+          for pkg in \
+            "$HOME/.nuget/packages/vpnhood.client/5.0.616-prerelease" \
+            "$HOME/.nuget/packages/vpnhood.client.device.android/5.0.616-prerelease"; do
+            test -d "$pkg" || { echo "::error::Expected VpnHood package missing: $pkg"; exit 1; }
+            echo "=== XML API docs: $pkg ==="
+            find "$pkg" -type f -name '*.xml' -exec grep -n -E 'VpnHoodClient|ClientOptions|ClientState|StateChanged|Connect|Disconnect|Dispose|AccessKey|CreatePacketCapture|IUiContext|Token' {} + || true
+            echo "=== Assembly symbols: $pkg ==="
+            find "$pkg" -type f -name '*.dll' -exec strings {} + | grep -E 'VpnHoodClient|ClientOptions|ClientState|StateChanged|Connect|Disconnect|Dispose|AccessKey|CreatePacketCapture|IUiContext|Token' | sort -u | head -100 || true
+          done
       - name: Compile GhostWeb VpnHood Android project
         run: |
           set -euo pipefail
