@@ -5,11 +5,13 @@
     <ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>
     <ApplicationVersion>854</ApplicationVersion>
     <ApplicationDisplayVersion>8.2.854</ApplicationDisplayVersion>
+    <ApplicationIcon>@drawable/ghostweb_vpn_logo</ApplicationIcon>
     <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <AndroidResource Include="Resources/drawable/ghostweb_vpn_logo.png" />
     <PackageReference Include="VpnHood.Client" Version="5.0.616-prerelease" />
     <PackageReference Include="VpnHood.Client.Device.Android" Version="5.0.616-prerelease" />
   </ItemGroup>
