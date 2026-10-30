@@ -81,8 +81,13 @@ jobs:
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$SDK_ROOT" || { echo "::error::Android SDK path is unavailable."; exit 1; }
           APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          AAPT="$(find "$SDK_ROOT/build-tools" -type f -name aapt -print | sort -V | tail -1)"
           test -n "$APKSIGNER" && test -x "$APKSIGNER" || {
             echo "::error::apksigner is unavailable."
+            exit 1
+          }
+          test -n "$AAPT" && test -x "$AAPT" || {
+            echo "::error::aapt is unavailable."
             exit 1
           }
           mkdir -p vpnhood-client-debug-artifact
