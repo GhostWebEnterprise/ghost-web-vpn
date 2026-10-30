@@ -111,6 +111,8 @@ jobs:
           retention-days: 14
 
   signed-release-build:
+    # Never expose release-signing secrets to pull_request or push runs.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: upstream-source-build
     runs-on: ubuntu-latest
     steps:
