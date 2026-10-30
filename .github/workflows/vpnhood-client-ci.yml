@@ -74,16 +74,67 @@ jobs:
             exit 1
           }
           APK="${APKS[0]}"
+          [[ "$(basename "$APK")" != *-unsigned-* ]] || {
+            echo "::error::Unsigned GhostWeb VpnHood debug APK refused."
+            exit 1
+          }
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$SDK_ROOT" || { echo "::error::Android SDK path is unavailable."; exit 1; }
           APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          AAPT="$(find "$SDK_ROOT/build-tools" -type f -name aapt -print | sort -V | tail -1)"
           test -n "$APKSIGNER" && test -x "$APKSIGNER" || {
             echo "::error::apksigner is unavailable."
+            exit 1
+          }
+          test -n "$AAPT" && test -x "$AAPT" || {
+            echo "::error::aapt is unavailable."
             exit 1
           }
           mkdir -p vpnhood-client-debug-artifact
           "$APKSIGNER" verify --verbose --print-certs "$APK" \
             | tee vpnhood-client-debug-artifact/apksigner.txt
+          grep -q '^Verifies
+          (
+            cd vpnhood-client-debug-artifact
+            sha256sum GhostWeb-VpnHood-Android-debug.apk \
+              | tee GhostWeb-VpnHood-Android-debug.apk.sha256
+            sha256sum --check GhostWeb-VpnHood-Android-debug.apk.sha256
+          )
+          unzip -l vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk \
+            | tee vpnhood-client-debug-artifact/apk-contents.txt
+          grep -Fq "lib/arm64-v8a/lib_VpnHood.Client.dll.so" vpnhood-client-debug-artifact/apk-contents.txt || {
+            echo "::error::Standalone debug APK is missing compiled VpnHood.Client library for arm64-v8a."
+            exit 1
+          }
+          grep -Fq "lib/arm64-v8a/lib_VpnHood.Client.Device.Android.dll.so" vpnhood-client-debug-artifact/apk-contents.txt || {
+            echo "::error::Standalone debug APK is missing compiled VpnHood.Client.Device.Android library for arm64-v8a."
+            exit 1
+          }
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' \
+            vpnhood-client-debug-artifact/apk-contents.txt; then
+            echo "::error::Legacy WireGuard native library found in GhostWeb VpnHood client APK."
+            exit 1
+          fi
+      - name: Upload verified GhostWeb VpnHood client debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostweb-vpn-vpnhood-client-debug
+          path: vpnhood-client-debug-artifact/
+          if-no-files-found: error
+          retention-days: 14
+ vpnhood-client-debug-artifact/apksigner.txt || {
+            echo "::error::Debug APK signature verification did not report Verifies."
+            exit 1
+          }
+          grep -q 'Number of signers: 1' vpnhood-client-debug-artifact/apksigner.txt || {
+            echo "::error::Expected exactly one debug APK signer."
+            exit 1
+          }
+          "$AAPT" dump badging "$APK" | tee vpnhood-client-debug-artifact/apk-badging.txt
+          grep -q "package: name='cfd.ghostbin.ghostwebvpn'" vpnhood-client-debug-artifact/apk-badging.txt || {
+            echo "::error::Unexpected GhostWeb VpnHood debug APK package ID."
+            exit 1
+          }
           cp "$APK" vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk
           (
             cd vpnhood-client-debug-artifact
