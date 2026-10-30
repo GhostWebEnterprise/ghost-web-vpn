@@ -19,13 +19,17 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   VPNHOOD_UPSTREAM_REF: b4fec6567badcd0832e5157a6597f2b5b6b20fe0
 
 jobs:
   verified-release:
+    # Release signing secrets and repository write access are main-dispatch only.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
