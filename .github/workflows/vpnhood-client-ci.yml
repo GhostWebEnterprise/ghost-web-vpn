@@ -62,7 +62,7 @@ jobs:
             --no-restore -c Debug -f net10.0-android36.1 \
             -p:AndroidPackageFormats=apk
           mapfile -t APKS < <(find vpnhood-android/bin/Debug/net10.0-android36.1 \
-            -type f -name '*-Signed.apk' -print)
+            -maxdepth 1 -type f -name '*-Signed.apk' -print)
           test "${#APKS[@]}" -eq 1 || {
             echo "::error::Expected exactly one debug-signed GhostWeb VpnHood APK; found ${#APKS[@]}."
             find vpnhood-android/bin/Debug/net10.0-android36.1 -type f -name '*.apk' -print
