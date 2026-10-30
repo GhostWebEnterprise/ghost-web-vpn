@@ -109,7 +109,15 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
+          grep -Eq "launchable-activity: .* icon='[^']*ghostweb_vpn_logo[^']*'" apk-badging.txt || {
+            echo "::error::GhostWeb launcher activity icon metadata is missing"
+            exit 1
+          }
           unzip -l "$APK" > apk-contents.txt
+          grep -Fq 'ghostweb_vpn_logo' apk-contents.txt || {
+            echo "::error::GhostWeb launcher icon resource is missing from the APK"
+            exit 1
+          }
           if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
             echo "::error::Unexpected WireGuard native libraries in VpnHood APK"
             exit 1
