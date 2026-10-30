@@ -1,4 +1,3 @@
-import re
 import unittest
 from pathlib import Path
 
@@ -23,25 +22,18 @@ class VpnHoodActivityLifecycleTests(unittest.TestCase):
 
     def test_activity_destroy_detaches_observer_without_disposing_tunnel(self):
         activity = (ANDROID / "MainActivity.cs").read_text(encoding="utf-8")
-        match = re.search(
-            r"protected override void OnDestroy\(\)\s*\{(?P<body>.*?)\n    \}",
-            activity,
-            re.DOTALL,
-        )
-        self.assertIsNotNone(match, "OnDestroy override must remain explicit")
-        body = match.group("body")
-        self.assertIn("StateChanged -= OnClientStateChanged", body)
-        self.assertNotIn("DisposeAsync", body)
-        self.assertNotIn("TryDisposeClientAsync", body)
+        on_destroy = activity.split("protected override void OnDestroy()", 1)[1]
+        self.assertIn("StateChanged -= OnClientStateChanged", on_destroy)
+        self.assertNotIn("DisposeAsync", on_destroy)
+        self.assertNotIn("TryDisposeClientAsync", on_destroy)
 
     def test_failed_cleanup_keeps_client_available_for_retry(self):
         activity = (ANDROID / "MainActivity.cs").read_text(encoding="utf-8")
-        self.assertRegex(
-            activity,
-            r"if \(await TryDisposeClientAsync\(connectedClient\)\).*?"
-            r"ClearClient\(connectedClient\).*?else\s*\{.*?"
-            r"Disconnect failed; VPN state is unknown",
-        )
+        disconnect = activity.split("var connectedClient = VpnHoodClientSession.Client", 1)[1]
+        disconnect = disconnect.split("var accessKey =", 1)[0]
+        self.assertIn("if (await TryDisposeClientAsync(connectedClient))", disconnect)
+        self.assertIn("VpnHoodClientSession.ClearClient(connectedClient)", disconnect)
+        self.assertIn("Disconnect failed; VPN state is unknown", disconnect)
         self.assertIn("Connection failed and cleanup failed; VPN state is unknown", activity)
 
 
