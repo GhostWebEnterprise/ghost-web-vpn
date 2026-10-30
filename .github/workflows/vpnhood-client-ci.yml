@@ -5,11 +5,13 @@ on:
     branches: [main, migration/vpnhood-android]
     paths:
       - "vpnhood-android/**"
+      - "tests/test_vpnhood_activity_lifecycle.py"
       - ".github/workflows/vpnhood-client-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "vpnhood-android/**"
+      - "tests/test_vpnhood_activity_lifecycle.py"
       - ".github/workflows/vpnhood-client-ci.yml"
   workflow_dispatch:
 
@@ -22,6 +24,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Test Android activity session lifecycle contract
+        run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
       - name: Install .NET 10
         uses: actions/setup-dotnet@v4
         with:
