@@ -10,7 +10,7 @@ using VpnHood.Common.Tokens;
 
 namespace GhostWeb.VpnHood.Android;
 
-[Activity(Label = "GhostWeb VPN", MainLauncher = true, Exported = true)]
+[Activity(Label = "GhostWeb VPN", MainLauncher = true, Exported = true, Icon = "@drawable/ghostweb_vpn_logo")]
 public class MainActivity : ActivityEvent
 {
     private AndroidDevice? _device;
