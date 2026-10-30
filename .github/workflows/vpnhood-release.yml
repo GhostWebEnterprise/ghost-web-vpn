@@ -72,6 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$ANDROID_KEYSTORE_BASE64" || { echo "::error::ANDROID_KEYSTORE_BASE64 is required"; exit 1; }
+          umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ghostweb-release.jks"
           test -s "$RUNNER_TEMP/ghostweb-release.jks"
 
@@ -216,3 +217,14 @@ jobs:
           IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
           test "$IS_DRAFT" = false || { echo "::error::Release remains draft"; exit 1; }
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets
+
+      - name: Remove release signing material
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$RUNNER_TEMP/ghostweb-release.jks"
+          test ! -e "$RUNNER_TEMP/ghostweb-release.jks" || {
+            echo "::error::Release keystore cleanup failed"
+            exit 1
+          }
