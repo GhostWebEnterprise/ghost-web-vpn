@@ -55,4 +55,48 @@ jobs:
           set -euo pipefail
           dotnet build vpnhood-android/GhostWeb.VpnHood.Android.csproj \
             --no-restore -c Debug -f net10.0-android36.1
-      # Compilation only: never publish or upload an unverified APK.
+      - name: Package GhostWeb VpnHood Android debug APK
+        run: |
+          set -euo pipefail
+          dotnet publish vpnhood-android/GhostWeb.VpnHood.Android.csproj \
+            --no-restore -c Debug -f net10.0-android36.1 \
+            -p:AndroidPackageFormats=apk
+          mapfile -t APKS < <(find vpnhood-android/bin/Debug/net10.0-android36.1 \
+            -type f -name '*-Signed.apk' -print)
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one debug-signed GhostWeb VpnHood APK; found ${#APKS[@]}."
+            find vpnhood-android/bin/Debug/net10.0-android36.1 -type f -name '*.apk' -print
+            exit 1
+          }
+          APK="${APKS[0]}"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK_ROOT" || { echo "::error::Android SDK path is unavailable."; exit 1; }
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          test -n "$APKSIGNER" && test -x "$APKSIGNER" || {
+            echo "::error::apksigner is unavailable."
+            exit 1
+          }
+          mkdir -p vpnhood-client-debug-artifact
+          "$APKSIGNER" verify --verbose --print-certs "$APK" \
+            | tee vpnhood-client-debug-artifact/apksigner.txt
+          cp "$APK" vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk
+          (
+            cd vpnhood-client-debug-artifact
+            sha256sum GhostWeb-VpnHood-Android-debug.apk \
+              | tee GhostWeb-VpnHood-Android-debug.apk.sha256
+            sha256sum --check GhostWeb-VpnHood-Android-debug.apk.sha256
+          )
+          unzip -l vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk \
+            | tee vpnhood-client-debug-artifact/apk-contents.txt
+          if grep -E 'libwg-go\\.so|libwg-quick\\.so|libwg\\.so' \
+            vpnhood-client-debug-artifact/apk-contents.txt; then
+            echo "::error::Legacy WireGuard native library found in GhostWeb VpnHood client APK."
+            exit 1
+          fi
+      - name: Upload verified GhostWeb VpnHood client debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostweb-vpn-vpnhood-client-debug
+          path: vpnhood-client-debug-artifact/
+          if-no-files-found: error
+          retention-days: 14
