@@ -64,15 +64,35 @@ jobs:
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Build GhostWeb VpnHood Android client
         run: dotnet build vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj -c Debug --no-restore
-      - name: Locate and inspect debug APK
+      - name: Locate and verify signed debug APK
+        shell: bash
         run: |
           set -euo pipefail
-          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug -type f -name '*.apk' -print -quit)"
-          test -n "$APK" || { echo "::error::Debug build produced no APK"; exit 1; }
+          mapfile -t APKS < <(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug -type f -name '*-Signed.apk' -print)
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed debug APK; found ${#APKS[@]}" >&2
+            find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug -type f -name '*.apk' -print || true
+            exit 1
+          }
+          APK="${APKS[0]}"
+          [[ "$(basename "$APK")" != *-unsigned-* ]] || {
+            echo "::error::Unsigned VpnHood debug APK refused" >&2
+            exit 1
+          }
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK_ROOT" || { echo "::error::Android SDK path is unavailable" >&2; exit 1; }
+          BUILD_TOOLS="$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable" >&2; exit 1; }
+          test -x "$BUILD_TOOLS/aapt" || { echo "::error::aapt unavailable" >&2; exit 1; }
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
+          grep -q '^Verifies$' apksigner.txt
+          grep -q 'Number of signers: 1' apksigner.txt
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
+          grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           echo "APK=$APK" >> "$GITHUB_ENV"
           unzip -l "$APK" | tee apk-contents.txt
-          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
-            echo "::error::Legacy WireGuard native library found in VpnHood APK"
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-contents.txt; then
+            echo "::error::Legacy WireGuard native library found in VpnHood APK" >&2
             exit 1
           fi
           sha256sum "$APK" | tee vpnhood-debug.sha256
@@ -82,6 +102,8 @@ jobs:
           cp "$APK" vpnhood-debug-artifact/GhostWeb-VpnHood-debug.apk
           cp vpnhood-upstream.sha vpnhood-debug-artifact/
           cp vpnhood-debug.sha256 vpnhood-debug-artifact/
+          cp apksigner.txt vpnhood-debug-artifact/
+          cp apk-badging.txt vpnhood-debug-artifact/
           cp apk-contents.txt vpnhood-debug-artifact/
           cp vpnhood-upstream/LICENSE vpnhood-debug-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload VpnHood debug APK evidence
@@ -159,18 +181,31 @@ jobs:
             -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" \
             -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD"
       - name: Verify signed release APK, package and WireGuard absence
+        shell: bash
         run: |
           set -euo pipefail
-          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*Signed.apk' -print -quit)"
-          test -n "$APK" || APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*.apk' -print -quit)"
-          test -n "$APK" || { echo "::error::Release build produced no APK"; exit 1; }
+          mapfile -t APKS < <(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*-Signed.apk' -print)
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed release APK; found ${#APKS[@]}" >&2
+            find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*.apk' -print || true
+            exit 1
+          }
+          APK="${APKS[0]}"
+          [[ "$(basename "$APK")" != *-unsigned-* ]] || {
+            echo "::error::Unsigned VpnHood release APK refused" >&2
+            exit 1
+          }
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable" >&2; exit 1; }
+          test -x "$BUILD_TOOLS/aapt" || { echo "::error::aapt unavailable" >&2; exit 1; }
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
+          grep -q '^Verifies$' apksigner.txt
+          grep -q 'Number of signers: 1' apksigner.txt
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-release-contents.txt
-          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-release-contents.txt; then
-            echo "::error::Legacy WireGuard native library found in release APK"
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-release-contents.txt; then
+            echo "::error::Legacy WireGuard native library found in release APK" >&2
             exit 1
           fi
           sha256sum "$APK" | tee ghostweb-vpn-vpnhood-release.sha256
@@ -185,3 +220,7 @@ jobs:
           path: vpnhood-release-artifact/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/ghostweb-release.jks"
