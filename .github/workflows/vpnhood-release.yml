@@ -107,6 +107,11 @@ jobs:
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable"; exit 1; }
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
+          EXPECTED_SIGNER_SHA256="5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9"
+          grep -Fq "certificate SHA-256 digest: ${EXPECTED_SIGNER_SHA256}" apksigner.txt || {
+            echo "::error::Release signer differs from the existing vpnhood-android-v1 signing identity"
+            exit 1
+          }
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           grep -Eq "launchable-activity: .* icon='[^']*ghostweb_vpn_logo[^']*'" apk-badging.txt || {
