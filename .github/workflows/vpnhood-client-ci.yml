@@ -101,7 +101,7 @@ jobs:
             echo "::error::Standalone debug APK is missing compiled VpnHood.Client.Device.Android library for arm64-v8a."
             exit 1
           }
-          if grep -E 'libwg-go\\.so|libwg-quick\\.so|libwg\\.so' \
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' \
             vpnhood-client-debug-artifact/apk-contents.txt; then
             echo "::error::Legacy WireGuard native library found in GhostWeb VpnHood client APK."
             exit 1
