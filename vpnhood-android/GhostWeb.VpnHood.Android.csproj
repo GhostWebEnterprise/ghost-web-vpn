@@ -5,7 +5,7 @@
     <ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>
     <ApplicationVersion>854</ApplicationVersion>
     <ApplicationDisplayVersion>8.2.854</ApplicationDisplayVersion>
-    <ApplicationIcon>@drawable/ghostweb_vpn_logo</ApplicationIcon>
+    <ApplicationIcon>Resources/drawable/ghostweb_vpn_logo.png</ApplicationIcon>
     <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
