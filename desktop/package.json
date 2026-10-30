@@ -20,9 +20,33 @@
   "build": {
     "appId": "cfd.ghostbin.ghostwebvpn",
     "productName": "GhostWeb VPN",
-    "files": ["main.js", "preload.js", "index.html"],
-    "linux": { "target": ["AppImage", "deb"] },
-    "win": { "target": ["nsis", "zip"] },
-    "mac": { "target": ["dmg", "zip"] }
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    }
+  },
+  "homepage": "https://ghostweb.bot.cd/vpn.html",
+  "author": {
+    "name": "GhostWeb Enterprise",
+    "email": "support-ghostweb@proton.me"
   }
 }
