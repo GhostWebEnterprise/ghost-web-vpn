@@ -89,12 +89,12 @@ jobs:
           )
           unzip -l vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk \
             | tee vpnhood-client-debug-artifact/apk-contents.txt
-          grep -Fq "assemblies/VpnHood.Client.dll" vpnhood-client-debug-artifact/apk-contents.txt || {
-            echo "::error::Standalone debug APK is missing VpnHood.Client.dll; fast deployment must remain disabled."
+          grep -Fq "lib/arm64-v8a/lib_VpnHood.Client.dll.so" vpnhood-client-debug-artifact/apk-contents.txt || {
+            echo "::error::Standalone debug APK is missing compiled VpnHood.Client library for arm64-v8a."
             exit 1
           }
-          grep -Fq "assemblies/VpnHood.Client.Device.Android.dll" vpnhood-client-debug-artifact/apk-contents.txt || {
-            echo "::error::Standalone debug APK is missing VpnHood.Client.Device.Android.dll; fast deployment must remain disabled."
+          grep -Fq "lib/arm64-v8a/lib_VpnHood.Client.Device.Android.dll.so" vpnhood-client-debug-artifact/apk-contents.txt || {
+            echo "::error::Standalone debug APK is missing compiled VpnHood.Client.Device.Android library for arm64-v8a."
             exit 1
           }
           if grep -E 'libwg-go\\.so|libwg-quick\\.so|libwg\\.so' \
