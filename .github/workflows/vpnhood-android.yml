@@ -93,6 +93,8 @@ jobs:
           retention-days: 14
 
   signed-release-build:
+    # Never expose the Android signing keystore to pull_request or push jobs.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: upstream-source-build
     runs-on: ubuntu-latest
     steps:
