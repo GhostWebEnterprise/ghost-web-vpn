@@ -1,4 +1,4 @@
----
+--- 
 # yamllint disable rule:line-length
 name: VpnHood Verified Android Release
 
@@ -8,11 +8,13 @@ on:
     paths:
       - ".github/workflows/vpnhood-release.yml"
       - "vpnhood-android/**"
+      - "tests/test_vpnhood_activity_lifecycle.py"
   pull_request:
     branches: [main]
     paths:
       - ".github/workflows/vpnhood-release.yml"
       - "vpnhood-android/**"
+      - "tests/test_vpnhood_activity_lifecycle.py"
   workflow_dispatch:
     inputs:
       release_tag:
@@ -28,7 +30,6 @@ env:
 
 jobs:
   verified-release:
-    # Release signing secrets and write permissions are only available to an explicit main-branch dispatch.
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
@@ -36,6 +37,9 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - name: Test Android activity session lifecycle contract
+        run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
 
       - name: Checkout verified VpnHood source and license
         uses: actions/checkout@v4
@@ -162,8 +166,6 @@ jobs:
             echo "::error::Release $TAG already exists; refusing to modify existing assets"
             exit 1
           fi
-          # Create the immutable tag only after the signed APK and local checksum passed.
-          # On retries, reuse the tag only if it resolves to this exact workflow commit.
           remote_tags="$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
           tag_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG" '$2 == ref {print $1}')"
           peeled_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG^{}" '$2 == ref {print $1}')"
