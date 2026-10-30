@@ -14,11 +14,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-apk:
     name: Build Android APKs
+    # Signing secrets are only available to trusted main-branch builds, never pull_request jobs.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -110,6 +114,8 @@ jobs:
     name: Publish verified signed release APK
     needs: build-apk
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
