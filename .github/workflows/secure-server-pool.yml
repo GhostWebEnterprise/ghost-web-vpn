@@ -34,8 +34,9 @@ jobs:
           assert policy["smartConnect"]["protocolOrder"] == ["quic","udp","tcp"]
           regions=pool["regions"]
           assert {r["id"] for r in regions} == {"se","fi","nl","de","us"}
+          assert all(r["enabled"] is False for r in regions), "No server region may be enabled before a real GhostWeb node is provisioned"
           assert all("accessKey" not in r for r in regions)
-          print("GhostWeb Secure Server Pool policy validated")
+          print("GhostWeb Secure Server Pool policy validated (all unprovisioned regions disabled)")
           PY
       - name: Reject committed VpnHood access keys
         run: |
