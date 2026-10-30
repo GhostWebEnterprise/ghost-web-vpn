@@ -138,7 +138,7 @@ jobs:
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-contents.txt
           BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
-          WEB_ROOT_PATH="$(unzip -Z1 "$APK" | grep -E '(^|/)web-root\\.zip$' | head -n 1)"
+          WEB_ROOT_PATH="$(unzip -Z1 "$APK" | grep -E '(^|/)web-root\.zip$' | head -n 1)"
           test -n "$WEB_ROOT_PATH" || { echo "::error::Missing browser UI in signed APK"; exit 1; }
           EXPECTED_WEB_ROOT="$(sha256sum "$BROWSER_ZIP" | cut -d' ' -f1)"
           ACTUAL_WEB_ROOT="$(unzip -p "$APK" "$WEB_ROOT_PATH" | sha256sum | cut -d' ' -f1)"
