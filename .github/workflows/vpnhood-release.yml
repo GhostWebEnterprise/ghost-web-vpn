@@ -89,7 +89,7 @@ jobs:
             -p:AndroidSigningStorePass="$ANDROID_KEYSTORE_PASSWORD" \
             -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" \
             -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD" \
-            -p:AndroidPackageFormat=apk
+            -p:AndroidPackageFormats=apk
 
       - name: Verify and stage the exact client APK
         shell: bash
