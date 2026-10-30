@@ -103,7 +103,7 @@ jobs:
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           echo "APK=$APK" >> "$GITHUB_ENV"
           unzip -l "$APK" | tee apk-contents.txt
-          if grep -E 'libwg-go\\.so|libwg-quick\\.so|libwg\\.so' apk-contents.txt; then
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-contents.txt; then
             echo "::error::Legacy WireGuard native library found in VpnHood APK"
             exit 1
           fi
@@ -234,7 +234,7 @@ jobs:
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-release-contents.txt
-          if grep -E 'libwg-go\\.so|libwg-quick\\.so|libwg\\.so' apk-release-contents.txt; then
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-release-contents.txt; then
             echo "::error::Legacy WireGuard native library found in release APK"
             exit 1
           fi
