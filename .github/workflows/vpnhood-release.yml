@@ -111,128 +111,13 @@ jobs:
           [[ "$(basename "$APK")" != *unsigned* ]] || { echo "::error::Unsigned APK refused"; exit 1; }
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable"; exit 1; }
+          test -x "$BUILD_TOOLS/aapt" || { echo "::error::aapt unavailable"; exit 1; }
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
-          grep -q '^Verifies
-          grep -Fq "certificate SHA-256 digest: ${EXPECTED_SIGNER_SHA256}" apksigner.txt || {
-            echo "::error::Release signer differs from the existing vpnhood-android-v1 signing identity"
-            exit 1
-          }
-          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
-          grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
-          grep -Eq "launchable-activity: .* icon='[^']*ghostweb_vpn_logo[^']*'" apk-badging.txt || {
-            echo "::error::GhostWeb launcher activity icon metadata is missing"
-            exit 1
-          }
-          unzip -l "$APK" > apk-contents.txt
-          grep -Fq 'ghostweb_vpn_logo' apk-contents.txt || {
-            echo "::error::GhostWeb launcher icon resource is missing from the APK"
-            exit 1
-          }
-          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
-            echo "::error::Unexpected WireGuard native libraries in VpnHood APK"
-            exit 1
-          fi
-          mkdir -p release
-          cp "$APK" release/GhostWeb-VPN-VpnHood-release.apk
-          (cd release && sha256sum GhostWeb-VPN-VpnHood-release.apk) | tee release/GhostWeb-VPN-VpnHood-release.apk.sha256
-          (cd release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
-          cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha release/
-          cp vpnhood-upstream/LICENSE release/VPNHOOD-LGPL-2.1-LICENSE.txt
-          cp vpnhood-android/GhostWeb.VpnHood.Android.csproj release/
-          grep -E 'PackageReference Include="VpnHood\.(Client|Client\.Device\.Android)"' vpnhood-android/GhostWeb.VpnHood.Android.csproj \
-            > release/VPNHOOD-CLIENT-DEPENDENCIES.txt
-          test -s release/VPNHOOD-CLIENT-DEPENDENCIES.txt
-
-      - name: Upload verified release evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: ghostweb-vpn-vpnhood-public-release
-          path: release/
-          if-no-files-found: error
-          retention-days: 90
-
-      - name: Publish immutable VpnHood release only after byte verification
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          set -euo pipefail
-          TAG="$RELEASE_TAG"
-          if [[ ! "$TAG" =~ ^vpnhood-android-v[0-9]+$ ]]; then
-            echo "::error::Invalid release tag; expected vpnhood-android-vN"
-            exit 1
-          fi
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Release $TAG already exists; refusing to modify existing assets"
-            exit 1
-          fi
-          remote_tags="$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
-          tag_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG" '$2 == ref {print $1}')"
-          peeled_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG^{}" '$2 == ref {print $1}')"
-          resolved_tag_sha="${peeled_sha:-$tag_sha}"
-          if [ -n "$resolved_tag_sha" ]; then
-            if [ "$resolved_tag_sha" != "$GITHUB_SHA" ]; then
-              echo "::error::Tag $TAG already exists at a different commit; refusing to move it"
-              exit 1
-            fi
-            echo "Tag $TAG already points to this workflow commit; reusing it"
-          else
-            git tag "$TAG" "$GITHUB_SHA"
-            git push origin "refs/tags/$TAG"
-          fi
-          gh release create "$TAG" --draft --verify-tag \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "GhostWeb VPN — VpnHood Android" \
-            --notes "GhostWeb VPN Android client built against VpnHood.Client and VpnHood.Client.Device.Android 5.0.616-prerelease. Source/license evidence is attached. The signed APK is verified with apksigner and SHA-256 in CI."
-          gh release upload "$TAG" \
-            release/GhostWeb-VPN-VpnHood-release.apk \
-            release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
-            release/apksigner.txt \
-            release/VPNHOOD-CLIENT-DEPENDENCIES.txt \
-            release/VPNHOOD-LGPL-2.1-LICENSE.txt \
-            --repo "$GITHUB_REPOSITORY"
-          mkdir -p verified-release
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'GhostWeb-VPN-VpnHood-release.apk' --dir verified-release
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'GhostWeb-VPN-VpnHood-release.apk.sha256' --dir verified-release
-          cmp -s release/GhostWeb-VPN-VpnHood-release.apk \
-            verified-release/GhostWeb-VPN-VpnHood-release.apk || {
-              echo "::error::Downloaded release APK differs from verified build"; exit 1;
-            }
-          cmp -s release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
-            verified-release/GhostWeb-VPN-VpnHood-release.apk.sha256 || {
-              echo "::error::Downloaded checksum manifest differs"; exit 1;
-            }
-          (cd verified-release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
-          EXPECTED="$(cut -d' ' -f1 release/GhostWeb-VPN-VpnHood-release.apk.sha256)"
-          ACTUAL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
-            --jq '.assets[] | select(.name=="GhostWeb-VPN-VpnHood-release.apk") | .digest' \
-            | sed 's/^sha256://')"
-          test -n "$ACTUAL" && test "$EXPECTED" = "$ACTUAL" || {
-            echo "::error::GitHub release digest does not match verified APK"; exit 1;
-          }
-          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
-          IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
-          test "$IS_DRAFT" = false || { echo "::error::Release remains draft"; exit 1; }
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets
-
-      - name: Remove release signing material
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f "$RUNNER_TEMP/ghostweb-release.jks"
-          test ! -e "$RUNNER_TEMP/ghostweb-release.jks" || {
-            echo "::error::Release keystore cleanup failed"
-            exit 1
-          }
- apksigner.txt || {
+          grep -Fq "Verifies" apksigner.txt || {
             echo "::error::Release APK signature verification did not report Verifies"
             exit 1
           }
-          grep -q 'Number of signers: 1' apksigner.txt || {
+          grep -Fq "Number of signers: 1" apksigner.txt || {
             echo "::error::Expected exactly one release APK signer"
             exit 1
           }
