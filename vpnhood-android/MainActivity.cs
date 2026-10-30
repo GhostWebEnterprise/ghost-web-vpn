@@ -13,17 +13,14 @@ namespace GhostWeb.VpnHood.Android;
 [Activity(Label = "GhostWeb VPN", MainLauncher = true, Exported = true, Icon = "@drawable/ghostweb_vpn_logo")]
 public class MainActivity : ActivityEvent
 {
-    private AndroidDevice? _device;
-    private VpnHoodClient? _client;
     private EditText? _accessKeyInput;
     private Button? _connectButton;
     private TextView? _status;
+    private bool _destroyed;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-
-        _device = AndroidDevice.Create();
 
         var layout = new LinearLayout(this)
         {
@@ -59,82 +56,82 @@ public class MainActivity : ActivityEvent
         layout.AddView(_connectButton);
 
         SetContentView(layout);
+        AttachExistingClient();
+    }
+
+    protected override void OnResume()
+    {
+        base.OnResume();
+        var client = VpnHoodClientSession.Client;
+        if (client is not null)
+            UpdateStatus($"VPN state: {client.State}");
     }
 
     private async Task ToggleConnectionAsync()
     {
-        if (_client is not null)
-        {
-            var connectedClient = _client;
-            if (_connectButton is not null)
-                _connectButton.Enabled = false;
+        if (_connectButton is not null)
+            _connectButton.Enabled = false;
 
-            connectedClient.StateChanged -= OnClientStateChanged;
-            try
+        await VpnHoodClientSession.OperationLock.WaitAsync();
+        try
+        {
+            if (_destroyed)
+                return;
+
+            var connectedClient = VpnHoodClientSession.Client;
+            if (connectedClient is not null)
             {
+                connectedClient.StateChanged -= OnClientStateChanged;
                 if (await TryDisposeClientAsync(connectedClient))
                 {
-                    if (ReferenceEquals(_client, connectedClient))
-                        _client = null;
+                    VpnHoodClientSession.ClearClient(connectedClient);
                     UpdateStatus("Disconnected");
                 }
                 else
                 {
+                    connectedClient.StateChanged += OnClientStateChanged;
                     UpdateStatus("Disconnect failed; VPN state is unknown. Retry disconnect before reconnecting.");
                 }
+                return;
             }
-            finally
+
+            var accessKey = _accessKeyInput?.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(accessKey))
             {
-                if (_connectButton is not null)
-                {
-                    _connectButton.Enabled = true;
-                    _connectButton.Text = _client is null ? "Connect" : "Disconnect";
-                }
+                UpdateStatus("Enter a VpnHood access key from a server you trust.");
+                return;
             }
-            return;
-        }
 
-        var accessKey = _accessKeyInput?.Text?.Trim();
-        if (string.IsNullOrWhiteSpace(accessKey))
-        {
-            UpdateStatus("Enter a VpnHood access key from a server you trust.");
-            return;
-        }
-
-        if (_connectButton is not null)
-            _connectButton.Enabled = false;
-
-        try
-        {
             UpdateStatus("Preparing VPN permission and packet capture…");
             var token = Token.FromAccessKey(accessKey);
-            var packetCapture = await _device!.CreatePacketCapture(new AndroidUiContext(this));
+            var packetCapture = await VpnHoodClientSession.Device.CreatePacketCapture(
+                new AndroidUiContext(this));
             var client = new VpnHoodClient(
                 packetCapture,
                 GetOrCreateClientId(),
                 token,
                 new ClientOptions());
 
+            VpnHoodClientSession.SetClient(client);
             client.StateChanged += OnClientStateChanged;
-            _client = client;
             UpdateStatus($"VPN state: {client.State}");
             await client.Connect();
             UpdateStatus($"VPN state: {client.State}");
         }
         catch (Exception)
         {
-            var failedClient = _client;
+            var failedClient = VpnHoodClientSession.Client;
             if (failedClient is not null)
             {
                 failedClient.StateChanged -= OnClientStateChanged;
                 if (await TryDisposeClientAsync(failedClient))
                 {
-                    if (ReferenceEquals(_client, failedClient))
-                        _client = null;
+                    VpnHoodClientSession.ClearClient(failedClient);
                     UpdateStatus("Connection failed. Check the access key and server, then retry.");
                 }
                 else
                 {
+                    failedClient.StateChanged += OnClientStateChanged;
                     UpdateStatus("Connection failed and cleanup failed; VPN state is unknown. Retry disconnect before reconnecting.");
                 }
             }
@@ -145,12 +142,24 @@ public class MainActivity : ActivityEvent
         }
         finally
         {
-            if (_connectButton is not null)
+            VpnHoodClientSession.OperationLock.Release();
+            if (_connectButton is not null && !_destroyed)
             {
                 _connectButton.Enabled = true;
-                _connectButton.Text = _client is null ? "Connect" : "Disconnect";
+                _connectButton.Text = VpnHoodClientSession.Client is null ? "Connect" : "Disconnect";
             }
         }
+    }
+
+    private void AttachExistingClient()
+    {
+        var client = VpnHoodClientSession.Client;
+        if (client is null)
+            return;
+
+        client.StateChanged -= OnClientStateChanged;
+        client.StateChanged += OnClientStateChanged;
+        UpdateStatus($"VPN state: {client.State}");
     }
 
     private async Task<bool> TryDisposeClientAsync(VpnHoodClient client)
@@ -162,16 +171,25 @@ public class MainActivity : ActivityEvent
         }
         catch (Exception ex)
         {
-            global::Android.Util.Log.Error("GhostWebVpn", $"VpnHood client cleanup failed ({ex.GetType().Name}).");
+            global::Android.Util.Log.Error(
+                "GhostWebVpn",
+                $"VpnHood client cleanup failed ({ex.GetType().Name}).");
             return false;
         }
     }
 
     private void OnClientStateChanged(object? sender, EventArgs e)
     {
-        RunOnUiThread(() => UpdateStatus(_client is null
-            ? "Disconnected"
-            : $"VPN state: {_client.State}"));
+        if (_destroyed)
+            return;
+
+        var client = VpnHoodClientSession.Client;
+        var message = client is null ? "Disconnected" : $"VPN state: {client.State}";
+        RunOnUiThread(() =>
+        {
+            if (!_destroyed)
+                UpdateStatus(message);
+        });
     }
 
     private string GetOrCreateClientId()
@@ -190,22 +208,24 @@ public class MainActivity : ActivityEvent
 
     private void UpdateStatus(string message)
     {
+        if (_destroyed)
+            return;
+
         if (_status is not null)
             _status.Text = message;
         if (_connectButton is not null)
-            _connectButton.Text = _client is null ? "Connect" : "Disconnect";
+            _connectButton.Text = VpnHoodClientSession.Client is null ? "Connect" : "Disconnect";
     }
 
     protected override void OnDestroy()
     {
-        if (_client is not null)
-        {
-            var client = _client;
-            _client = null;
+        _destroyed = true;
+        var client = VpnHoodClientSession.Client;
+        if (client is not null)
             client.StateChanged -= OnClientStateChanged;
-            _ = TryDisposeClientAsync(client);
-        }
 
+        // The app-scoped session owns the tunnel. Activity recreation only detaches
+        // this UI observer; explicit user disconnect remains the only normal stop path.
         base.OnDestroy();
     }
 }
