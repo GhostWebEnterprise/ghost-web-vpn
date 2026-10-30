@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "failClosed": true,
+    "selection": "lowest-latency-healthy",
+    "healthCheckSeconds": 60,
+    "failureThreshold": 3,
+    "accessKeys": "device-secure-storage-only"
+  },
+  "regions": [
+    {"id":"se","name":"Sweden","enabled":false,"accessKeyEnv":"GHOSTWEB_VPN_KEY_SE"},
+    {"id":"fi","name":"Finland","enabled":false,"accessKeyEnv":"GHOSTWEB_VPN_KEY_FI"},
+    {"id":"nl","name":"Netherlands","enabled":false,"accessKeyEnv":"GHOSTWEB_VPN_KEY_NL"},
+    {"id":"de","name":"Germany","enabled":false,"accessKeyEnv":"GHOSTWEB_VPN_KEY_DE"},
+    {"id":"us","name":"United States","enabled":false,"accessKeyEnv":"GHOSTWEB_VPN_KEY_US"}
+  ]
+}

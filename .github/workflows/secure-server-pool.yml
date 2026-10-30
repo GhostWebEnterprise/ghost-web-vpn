@@ -1,0 +1,46 @@
+name: GhostWeb Secure Server Pool Policy
+
+on:
+  push:
+    branches: [feature/secure-server-pool-autoprotect]
+    paths:
+      - "vpnhood-android/ghostweb/**"
+      - ".github/workflows/secure-server-pool.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "vpnhood-android/ghostweb/**"
+      - ".github/workflows/secure-server-pool.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate pool and protection policy
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          pool=json.loads(Path("vpnhood-android/ghostweb/server-pool.json").read_text())
+          policy=json.loads(Path("vpnhood-android/ghostweb/protection-policy.json").read_text())
+          assert pool["policy"]["failClosed"] is True
+          assert policy["autoProtect"]["requireVpnForInternet"] is True
+          assert policy["smartConnect"]["allowUnprotectedFallback"] is False
+          assert policy["smartConnect"]["protocolOrder"] == ["quic","udp","tcp"]
+          regions=pool["regions"]
+          assert {r["id"] for r in regions} == {"se","fi","nl","de","us"}
+          assert all(r["enabled"] is False for r in regions), "No server region may be enabled before a real GhostWeb node is provisioned"
+          assert all("accessKey" not in r for r in regions)
+          print("GhostWeb Secure Server Pool policy validated (all unprovisioned regions disabled)")
+          PY
+      - name: Reject committed VpnHood access keys
+        run: |
+          if grep -R -nE 'vh://[A-Za-z0-9+/=_-]+' vpnhood-android/ghostweb; then
+            echo "::error::VpnHood access key must never be committed"
+            exit 1
+          fi
