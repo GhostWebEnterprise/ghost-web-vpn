@@ -61,12 +61,12 @@ jobs:
           dotnet publish vpnhood-android/GhostWeb.VpnHood.Android.csproj \
             --no-restore -c Debug -f net10.0-android36.1 \
             -p:AndroidPackageFormats=apk \
-            -p:AndroidEnableFastDeployment=false
-          mapfile -t APKS < <(find vpnhood-android/bin/Debug/net10.0-android36.1 \
+            -p:EmbedAssembliesIntoApk=true
+          mapfile -t APKS < <(find vpnhood-android/bin/Debug/net10.0-android36.1/publish \
             -maxdepth 1 -type f -name '*-Signed.apk' -print)
           test "${#APKS[@]}" -eq 1 || {
             echo "::error::Expected exactly one debug-signed GhostWeb VpnHood APK; found ${#APKS[@]}."
-            find vpnhood-android/bin/Debug/net10.0-android36.1 -type f -name '*.apk' -print
+            find vpnhood-android/bin/Debug/net10.0-android36.1/publish -type f -name '*.apk' -print
             exit 1
           }
           APK="${APKS[0]}"
