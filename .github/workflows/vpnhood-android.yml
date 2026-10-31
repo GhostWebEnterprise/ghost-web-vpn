@@ -60,29 +60,94 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Install Android workload
         run: dotnet workload install android
+      - name: Install VpnHood browser UI workload
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        run: dotnet workload install wasm-tools
+      - name: Publish required VpnHood browser UI assets
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ./_publish.ps1
+          if ($LASTEXITCODE -ne 0) { throw "VpnHood browser UI publish failed." }
+          $asset = "./bin/avalonia-browser.zip"
+          if (!(Test-Path $asset) -or (Get-Item $asset).Length -eq 0) {
+            throw "Required VpnHood browser UI asset was not produced."
+          }
       - name: Restore official VpnHood Android client
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Build GhostWeb VpnHood Android client
         run: dotnet build vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj -c Debug --no-restore
-      - name: Locate and inspect debug APK
+      - name: Locate and verify debug APK signature, package and WireGuard absence
+        shell: bash
         run: |
           set -euo pipefail
-          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug -type f -name '*.apk' -print -quit)"
-          test -n "$APK" || { echo "::error::Debug build produced no APK"; exit 1; }
+          mapfile -t APKS < <(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug -type f -name '*-Signed.apk' -print)
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed debug APK; found ${#APKS[@]}"
+            find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug -type f -name '*.apk' -print || true
+            exit 1
+          }
+          APK="${APKS[0]}"
+          BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
+          test -s "$BROWSER_ZIP" || { echo "::error::Required VpnHood browser UI asset is missing" >&2; exit 1; }
+          mapfile -t WEB_ROOTS < <(unzip -Z1 "$APK" | grep -F 'web-root.zip' || true)
+          test "${#WEB_ROOTS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one embedded VpnHood web-root.zip; found ${#WEB_ROOTS[@]}" >&2
+            exit 1
+          }
+          EXPECTED_WEB_ROOT="$(sha256sum "$BROWSER_ZIP" | cut -d' ' -f1)"
+          ACTUAL_WEB_ROOT="$(unzip -p "$APK" "${WEB_ROOTS[0]}" | sha256sum | cut -d' ' -f1)"
+          test "$EXPECTED_WEB_ROOT" = "$ACTUAL_WEB_ROOT" || {
+            echo "::error::Embedded VpnHood browser UI digest differs from the built browser asset" >&2
+            exit 1
+          }
+          echo "Verified embedded VpnHood browser UI SHA-256: $ACTUAL_WEB_ROOT"
+          unzip -p "$APK" "${WEB_ROOTS[0]}" > embedded-web-root.zip
+          test -s embedded-web-root.zip || {
+            echo "::error::Could not extract embedded VpnHood browser UI evidence" >&2
+            exit 1
+          }
+          EMBEDDED_WEB_ROOT_SHA256="$(sha256sum embedded-web-root.zip | cut -d' ' -f1)"
+          test "$EMBEDDED_WEB_ROOT_SHA256" = "$EXPECTED_WEB_ROOT" || {
+            echo "::error::Extracted browser UI evidence digest differs from upstream build" >&2
+            exit 1
+          }
+          printf '%s  embedded-web-root.zip\n' "$EMBEDDED_WEB_ROOT_SHA256" | tee vpnhood-browser.sha256
+          [[ "$(basename "$APK")" != *unsigned* ]] || {
+            echo "::error::Unsigned VpnHood APK refused"
+            exit 1
+          }
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable"; exit 1; }
+          test -x "$BUILD_TOOLS/aapt" || { echo "::error::aapt unavailable"; exit 1; }
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
+          grep -q '^Verifies$' apksigner.txt
+          grep -q 'Number of signers: 1' apksigner.txt
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
+          grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           echo "APK=$APK" >> "$GITHUB_ENV"
           unzip -l "$APK" | tee apk-contents.txt
-          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-contents.txt; then
             echo "::error::Legacy WireGuard native library found in VpnHood APK"
             exit 1
           fi
-          sha256sum "$APK" | tee vpnhood-debug.sha256
+          sha256sum "$APK"
+
       - name: Stage debug evidence
         run: |
+          set -euo pipefail
           mkdir -p vpnhood-debug-artifact
           cp "$APK" vpnhood-debug-artifact/GhostWeb-VpnHood-debug.apk
+          (
+            cd vpnhood-debug-artifact
+            sha256sum GhostWeb-VpnHood-debug.apk | tee GhostWeb-VpnHood-debug.apk.sha256
+            sha256sum --check GhostWeb-VpnHood-debug.apk.sha256
+          )
           cp vpnhood-upstream.sha vpnhood-debug-artifact/
-          cp vpnhood-debug.sha256 vpnhood-debug-artifact/
-          cp apk-contents.txt vpnhood-debug-artifact/
+          cp apk-contents.txt apksigner.txt apk-badging.txt vpnhood-browser.sha256 vpnhood-debug-artifact/
+          cp embedded-web-root.zip vpnhood-debug-artifact/
+          (cd vpnhood-debug-artifact && sha256sum --check vpnhood-browser.sha256)
           cp vpnhood-upstream/LICENSE vpnhood-debug-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload VpnHood debug APK evidence
         uses: actions/upload-artifact@v4
@@ -93,7 +158,7 @@ jobs:
           retention-days: 14
 
   signed-release-build:
-    # Never expose the Android signing keystore to pull_request or push jobs.
+    # Never expose release-signing secrets to pull_request or push runs.
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: upstream-source-build
     runs-on: ubuntu-latest
@@ -131,6 +196,20 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Install Android workload
         run: dotnet workload install android
+      - name: Install VpnHood browser UI workload
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        run: dotnet workload install wasm-tools
+      - name: Publish required VpnHood browser UI assets
+        working-directory: vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ./_publish.ps1
+          if ($LASTEXITCODE -ne 0) { throw "VpnHood browser UI publish failed." }
+          $asset = "./bin/avalonia-browser.zip"
+          if (!(Test-Path $asset) -or (Get-Item $asset).Length -eq 0) {
+            throw "Required VpnHood browser UI asset was not produced."
+          }
       - name: Restore official VpnHood Android client
         run: dotnet restore vpnhood-upstream/src/Apps/Client/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
       - name: Decode GhostWeb signing keystore
@@ -139,6 +218,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$ANDROID_KEYSTORE_BASE64" || { echo "::error::ANDROID_KEYSTORE_BASE64 is not configured"; exit 1; }
+          umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ghostweb-release.jks"
           test -s "$RUNNER_TEMP/ghostweb-release.jks"
       - name: Build signed GhostWeb VpnHood release APK
@@ -158,25 +238,64 @@ jobs:
             -p:AndroidSigningStorePass="$ANDROID_KEYSTORE_PASSWORD" \
             -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" \
             -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD"
-      - name: Verify signed release APK, package and WireGuard absence
+      - name: Verify signed release APK, signer identity, package and WireGuard absence
+        shell: bash
         run: |
           set -euo pipefail
-          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*Signed.apk' -print -quit)"
-          test -n "$APK" || APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*.apk' -print -quit)"
-          test -n "$APK" || { echo "::error::Release build produced no APK"; exit 1; }
+          mapfile -t APKS < <(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*-Signed.apk' -print)
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed release APK; found ${#APKS[@]}"
+            find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*.apk' -print || true
+            exit 1
+          }
+          APK="${APKS[0]}"
+          BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
+          test -s "$BROWSER_ZIP" || { echo "::error::Required VpnHood browser UI asset is missing" >&2; exit 1; }
+          mapfile -t WEB_ROOTS < <(unzip -Z1 "$APK" | grep -F 'web-root.zip' || true)
+          test "${#WEB_ROOTS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one embedded VpnHood web-root.zip; found ${#WEB_ROOTS[@]}" >&2
+            exit 1
+          }
+          EXPECTED_WEB_ROOT="$(sha256sum "$BROWSER_ZIP" | cut -d' ' -f1)"
+          ACTUAL_WEB_ROOT="$(unzip -p "$APK" "${WEB_ROOTS[0]}" | sha256sum | cut -d' ' -f1)"
+          test "$EXPECTED_WEB_ROOT" = "$ACTUAL_WEB_ROOT" || {
+            echo "::error::Embedded VpnHood browser UI digest differs from the built browser asset" >&2
+            exit 1
+          }
+          echo "Verified embedded VpnHood browser UI SHA-256: $ACTUAL_WEB_ROOT"
+          sha256sum "$BROWSER_ZIP" | tee vpnhood-browser.sha256
+          [[ "$(basename "$APK")" != *unsigned* ]] || { echo "::error::Unsigned release APK refused"; exit 1; }
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable"; exit 1; }
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
+          grep -Fq "Verifies" apksigner.txt || {
+            echo "::error::Release APK signature verification did not report Verifies" >&2
+            exit 1
+          }
+          grep -Fq "Number of signers: 1" apksigner.txt || {
+            echo "::error::Expected exactly one release APK signer" >&2
+            exit 1
+          }
+          EXPECTED_SIGNER_SHA256="5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9"
+          grep -Fq "certificate SHA-256 digest: ${EXPECTED_SIGNER_SHA256}" apksigner.txt || {
+            echo "::error::Release signer differs from the existing vpnhood-android-v1 signing identity"
+            exit 1
+          }
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-release-contents.txt
-          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-release-contents.txt; then
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-release-contents.txt; then
             echo "::error::Legacy WireGuard native library found in release APK"
             exit 1
           fi
-          sha256sum "$APK" | tee ghostweb-vpn-vpnhood-release.sha256
           mkdir -p vpnhood-release-artifact
           cp "$APK" vpnhood-release-artifact/GhostWeb-VPN-VpnHood-release.apk
-          cp ghostweb-vpn-vpnhood-release.sha256 apksigner.txt apk-badging.txt apk-release-contents.txt vpnhood-upstream.sha vpnhood-release-artifact/
+          (
+            cd vpnhood-release-artifact
+            sha256sum GhostWeb-VPN-VpnHood-release.apk | tee GhostWeb-VPN-VpnHood-release.apk.sha256
+            sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256
+          )
+          cp apksigner.txt apk-badging.txt apk-release-contents.txt vpnhood-upstream.sha vpnhood-browser.sha256 vpnhood-release-artifact/
           cp vpnhood-upstream/LICENSE vpnhood-release-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload signed VpnHood release evidence
         uses: actions/upload-artifact@v4
@@ -185,3 +304,14 @@ jobs:
           path: vpnhood-release-artifact/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Remove release signing material
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$RUNNER_TEMP/ghostweb-release.jks"
+          test ! -e "$RUNNER_TEMP/ghostweb-release.jks" || {
+            echo "::error::Release keystore cleanup failed"
+            exit 1
+          }
