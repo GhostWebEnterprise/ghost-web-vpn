@@ -19,7 +19,7 @@ class VpnHoodActivityLifecycleTests(unittest.TestCase):
         self.assertIn("VpnHoodClientSession.OperationLock.Release()", activity)
         self.assertIn("AttachExistingClient()", activity)
         self.assertIn("VpnHoodClientSession.SetClient(client)", activity)
-        self.assertIn("InputType = Android.Text.InputTypes.ClassText | Android.Text.InputTypes.TextVariationPassword", activity)
+        self.assertIn("InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword", activity)
 
     def test_activity_destroy_detaches_observer_without_disposing_tunnel(self):
         activity = (ANDROID / "MainActivity.cs").read_text(encoding="utf-8")
