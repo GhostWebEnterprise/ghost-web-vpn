@@ -85,16 +85,19 @@ jobs:
           APK_DIR="vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Debug"
           mapfile -t ALL_APKS < <(find "$APK_DIR" -type f -name '*.apk' -print)
           mapfile -t APKS < <(find "$APK_DIR" -type f -name '*-Signed.apk' -print)
-          test "${#ALL_APKS[@]}" -eq 1 && test "${#APKS[@]}" -eq 1 && test "${ALL_APKS[0]}" = "${APKS[0]}" || {
-            echo "::error::Expected exactly one APK and it must be the sole *-Signed.apk; found ${#ALL_APKS[@]} total and ${#APKS[@]} signed"
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed APK; found ${#APKS[@]} signed among ${#ALL_APKS[@]} total build outputs"
+            printf 'APK outputs (only *-Signed.apk is eligible for staging):\n'
             printf '%s\n' "${ALL_APKS[@]}"
             exit 1
           }
           APK="${APKS[0]}"
-          [[ "$(basename "$APK")" != *-unsigned-* ]] || {
-            echo "::error::Unsigned VpnHood debug APK refused" >&2
-            exit 1
-          }
+          case "$(basename "$APK" | tr '[:upper:]' '[:lower:]')" in
+            *unsigned*)
+              echo "::error::Unsigned VpnHood debug APK refused" >&2
+              exit 1
+              ;;
+          esac
           BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
           test -s "$BROWSER_ZIP" || { echo "::error::Required VpnHood browser UI asset is missing" >&2; exit 1; }
           mapfile -t WEB_ROOTS < <(unzip -Z1 "$APK" | grep -F 'web-root.zip' || true)
@@ -251,16 +254,19 @@ jobs:
           APK_DIR="vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release"
           mapfile -t ALL_APKS < <(find "$APK_DIR" -type f -name '*.apk' -print)
           mapfile -t APKS < <(find "$APK_DIR" -type f -name '*-Signed.apk' -print)
-          test "${#ALL_APKS[@]}" -eq 1 && test "${#APKS[@]}" -eq 1 && test "${ALL_APKS[0]}" = "${APKS[0]}" || {
-            echo "::error::Expected exactly one APK and it must be the sole *-Signed.apk; found ${#ALL_APKS[@]} total and ${#APKS[@]} signed"
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed release APK; found ${#APKS[@]} signed among ${#ALL_APKS[@]} total build outputs"
+            printf 'APK outputs (only *-Signed.apk is eligible for staging):\n'
             printf '%s\n' "${ALL_APKS[@]}"
             exit 1
           }
           APK="${APKS[0]}"
-          [[ "$(basename "$APK")" != *-unsigned-* ]] || {
-            echo "::error::Unsigned VpnHood release APK refused" >&2
-            exit 1
-          }
+          case "$(basename "$APK" | tr '[:upper:]' '[:lower:]')" in
+            *unsigned*)
+              echo "::error::Unsigned VpnHood release APK refused" >&2
+              exit 1
+              ;;
+          esac
           BROWSER_ZIP="vpnhood-upstream/src/AppUi/VpnHood.AppUi.Presentation.Classic.Avalonia.Browser/bin/avalonia-browser.zip"
           test -s "$BROWSER_ZIP" || { echo "::error::Required VpnHood browser UI asset is missing" >&2; exit 1; }
           mapfile -t WEB_ROOTS < <(unzip -Z1 "$APK" | grep -F 'web-root.zip' || true)
