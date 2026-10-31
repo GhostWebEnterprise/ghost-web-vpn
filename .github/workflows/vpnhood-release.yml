@@ -112,7 +112,7 @@ jobs:
             test "${#SIGNED_APKS[@]}" -eq 1 &&
             test "${PUBLISHED_APKS[0]}" = "${SIGNED_APKS[0]}" || {
               echo "::error::Expected exactly one APK in the publish output and it must be the sole *-Signed.apk; found ${#PUBLISHED_APKS[@]} total and ${#SIGNED_APKS[@]} signed" >&2
-              printf '%s\\n' "${PUBLISHED_APKS[@]}"
+              printf '%s\n' "${PUBLISHED_APKS[@]}"
               exit 1
             }
           APK="${SIGNED_APKS[0]}"
