@@ -110,7 +110,7 @@ jobs:
           mapfile -t SIGNED_APKS < <(find "$PUBLISH_DIR" -type f -name '*-Signed.apk' -print | sort)
           test "${#SIGNED_APKS[@]}" -eq 1 || {
             echo "::error::Expected exactly one signed APK; found ${#SIGNED_APKS[@]} among ${#PUBLISHED_APKS[@]} total publish outputs" >&2
-            printf '%s\\n' "${PUBLISHED_APKS[@]}"
+            printf '%s\n' "${PUBLISHED_APKS[@]}"
             exit 1
           }
           APK="${SIGNED_APKS[0]}"
