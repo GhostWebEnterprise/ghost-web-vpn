@@ -136,15 +136,18 @@ jobs:
           sha256sum "$APK" | tee vpnhood-debug.sha256
       - name: Stage debug evidence
         run: |
+          set -euo pipefail
           mkdir -p vpnhood-debug-artifact
           cp "$APK" vpnhood-debug-artifact/GhostWeb-VpnHood-debug.apk
           cp vpnhood-upstream.sha vpnhood-debug-artifact/
-          cp vpnhood-debug.sha256 vpnhood-debug-artifact/
-          cp apksigner.txt vpnhood-debug-artifact/
-          cp apk-badging.txt vpnhood-debug-artifact/
-          cp apk-contents.txt vpnhood-debug-artifact/
+          cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-debug-artifact/
           cp embedded-web-root.zip vpnhood-browser.sha256 vpnhood-debug-artifact/
-          (cd vpnhood-debug-artifact && sha256sum --check vpnhood-browser.sha256)
+          (
+            cd vpnhood-debug-artifact
+            sha256sum GhostWeb-VpnHood-debug.apk | tee GhostWeb-VpnHood-debug.apk.sha256
+            sha256sum --check GhostWeb-VpnHood-debug.apk.sha256
+            sha256sum --check vpnhood-browser.sha256
+          )
           cp vpnhood-upstream/LICENSE vpnhood-debug-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload VpnHood debug APK evidence
         uses: actions/upload-artifact@v4
@@ -294,8 +297,13 @@ jobs:
           sha256sum "$APK" | tee ghostweb-vpn-vpnhood-release.sha256
           mkdir -p vpnhood-release-artifact
           cp "$APK" vpnhood-release-artifact/GhostWeb-VPN-VpnHood-release.apk
-          cp ghostweb-vpn-vpnhood-release.sha256 apksigner.txt apk-badging.txt apk-release-contents.txt vpnhood-upstream.sha vpnhood-browser.sha256 embedded-web-root.zip vpnhood-release-artifact/
-          (cd vpnhood-release-artifact && sha256sum --check vpnhood-browser.sha256)
+          cp apksigner.txt apk-badging.txt apk-release-contents.txt vpnhood-upstream.sha vpnhood-browser.sha256 embedded-web-root.zip vpnhood-release-artifact/
+          (
+            cd vpnhood-release-artifact
+            sha256sum GhostWeb-VPN-VpnHood-release.apk | tee GhostWeb-VPN-VpnHood-release.apk.sha256
+            sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256
+            sha256sum --check vpnhood-browser.sha256
+          )
           cp vpnhood-upstream/LICENSE vpnhood-release-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload signed VpnHood release evidence
         uses: actions/upload-artifact@v4
