@@ -114,12 +114,31 @@ jobs:
             -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" \
             -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD"
       - name: Verify and stage exact release APK
+        shell: bash
         run: |
           set -euo pipefail
-          APK="$(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*Signed.apk' -print -quit)"
-          test -n "$APK"
+          mapfile -t APKS < <(find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*-Signed.apk' -print)
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one signed VpnHood release APK; found ${#APKS[@]}" >&2
+            find vpnhood-upstream/src/Apps/Client/Client.Android.Web/bin/Release -type f -name '*.apk' -print || true
+            exit 1
+          }
+          APK="${APKS[0]}"
+          [[ "$(basename "$APK")" != *-unsigned-* ]] || {
+            echo "::error::Unsigned VpnHood release APK refused" >&2
+            exit 1
+          }
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable" >&2; exit 1; }
+          test -x "$BUILD_TOOLS/aapt" || { echo "::error::aapt unavailable" >&2; exit 1; }
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
+          grep -q '^Verifies$' apksigner.txt
+          grep -q 'Number of signers: 1' apksigner.txt
+          EXPECTED_SIGNER_SHA256="5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9"
+          grep -Eq "^(Signer #1 certificate SHA-256 digest:|V[0-9.]+ Signer: certificate SHA-256 digest:) ${EXPECTED_SIGNER_SHA256}$" apksigner.txt || {
+            echo "::error::APK signer differs from the published GhostWeb VPN identity; refusing update-incompatible release" >&2
+            exit 1
+          }
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-contents.txt
@@ -129,8 +148,8 @@ jobs:
           EXPECTED_WEB_ROOT="$(sha256sum "$BROWSER_ZIP" | cut -d' ' -f1)"
           ACTUAL_WEB_ROOT="$(unzip -p "$APK" "$WEB_ROOT_PATH" | sha256sum | cut -d' ' -f1)"
           test "$EXPECTED_WEB_ROOT" = "$ACTUAL_WEB_ROOT" || { echo "::error::Browser UI APK asset digest mismatch"; exit 1; }
-          if grep -E 'libwg-go\.so|libwg-quick\.so|libwg\.so' apk-contents.txt; then
-            echo "::error::Unexpected WireGuard native libraries in VpnHood APK"
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-contents.txt; then
+            echo "::error::Unexpected WireGuard native libraries in VpnHood APK" >&2
             exit 1
           fi
           mkdir -p release
@@ -212,3 +231,7 @@ jobs:
             exit 1
           }
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/ghostweb-release.jks"
