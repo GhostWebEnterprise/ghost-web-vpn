@@ -113,7 +113,7 @@ jobs:
             echo "::error::Extracted browser UI evidence digest differs from upstream build" >&2
             exit 1
           }
-          printf '%s  embedded-web-root.zip\\n' "$EMBEDDED_WEB_ROOT_SHA256" | tee vpnhood-browser.sha256
+          printf '%s  embedded-web-root.zip\n' "$EMBEDDED_WEB_ROOT_SHA256" | tee vpnhood-browser.sha256
           [[ "$(basename "$APK")" != *unsigned* ]] || {
             echo "::error::Unsigned VpnHood APK refused"
             exit 1
