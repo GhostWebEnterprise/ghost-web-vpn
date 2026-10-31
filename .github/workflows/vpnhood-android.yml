@@ -201,6 +201,11 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
           grep -q '^Verifies$' apksigner.txt
           grep -q 'Number of signers: 1' apksigner.txt
+          EXPECTED_SIGNER_SHA256="5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9"
+          grep -Eq "^(Signer #1 certificate SHA-256 digest:|V[0-9.]+ Signer: certificate SHA-256 digest:) ${EXPECTED_SIGNER_SHA256}$" apksigner.txt || {
+            echo "::error::APK signer differs from the published GhostWeb VPN identity; refusing update-incompatible release" >&2
+            exit 1
+          }
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-release-contents.txt
