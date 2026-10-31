@@ -101,14 +101,17 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
+          APK_DIR="vpnhood-android/bin/Release"
+          ALL_APKS=()
+          while IFS= read -r -d '' file; do ALL_APKS+=("$file"); done < <(find "$APK_DIR" -type f -name '*.apk' -print0)
           apks=(vpnhood-android/bin/Release/net10.0-android36.1/publish/*-Signed.apk)
-          test "${#apks[@]}" -eq 1 || {
-            echo "::error::Expected exactly one signed published APK; found ${#apks[@]}"
-            find vpnhood-android/bin/Release -type f -name '*.apk' -print || true
+          test "${#ALL_APKS[@]}" -eq 1 && test "${#apks[@]}" -eq 1 && test "${ALL_APKS[0]}" = "${apks[0]}" || {
+            echo "::error::Expected exactly one APK and it must be the sole published *-Signed.apk; found ${#ALL_APKS[@]} total and ${#apks[@]} signed"
+            printf '%s\n' "${ALL_APKS[@]}"
             exit 1
           }
           APK="${apks[0]}"
-          [[ "$(basename "$APK")" != *unsigned* ]] || { echo "::error::Unsigned APK refused"; exit 1; }
+          [[ "$(basename "$APK")" != *-unsigned-* ]] || { echo "::error::Unsigned APK refused"; exit 1; }
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable"; exit 1; }
           test -x "$BUILD_TOOLS/aapt" || { echo "::error::aapt unavailable"; exit 1; }
