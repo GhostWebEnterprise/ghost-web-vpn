@@ -42,7 +42,7 @@ public class MainActivity : ActivityEvent
         _accessKeyInput = new EditText(this)
         {
             Hint = "VpnHood access key",
-            InputType = Android.Text.InputTypes.ClassText | Android.Text.InputTypes.TextVariationPassword,
+            InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword,
         };
         _accessKeyInput.SetSingleLine(true);
         layout.AddView(_accessKeyInput, new LinearLayout.LayoutParams(
