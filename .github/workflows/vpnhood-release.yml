@@ -174,8 +174,8 @@ jobs:
           fi
           REQUESTED_VERSION="${TAG##*-v}"
           EXISTING_TAG_REFS="$(git ls-remote --tags origin 'refs/tags/vpnhood-android-v*')"
-          EXISTING_VERSIONS="$(printf '%s\\n' "$EXISTING_TAG_REFS" | awk '{print $2}' | grep -E '^refs/tags/vpnhood-android-v[0-9]+$' | sed 's#^refs/tags/vpnhood-android-v##' | sort -n || true)"
-          HIGHEST_VERSION="$(printf '%s\\n' "$EXISTING_VERSIONS" | tail -n 1)"
+          EXISTING_VERSIONS="$(printf '%s\n' "$EXISTING_TAG_REFS" | awk '{print $2}' | grep -E '^refs/tags/vpnhood-android-v[0-9]+$' | sed 's#^refs/tags/vpnhood-android-v##' | sort -n || true)"
+          HIGHEST_VERSION="$(printf '%s\n' "$EXISTING_VERSIONS" | tail -n 1)"
           if [ -n "$HIGHEST_VERSION" ] && [ "$REQUESTED_VERSION" -lt "$HIGHEST_VERSION" ]; then
             echo "::error::Refusing non-monotonic VpnHood release ${TAG}; highest existing tag is vpnhood-android-v${HIGHEST_VERSION}" >&2
             exit 1
