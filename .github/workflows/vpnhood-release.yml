@@ -117,6 +117,10 @@ jobs:
             echo "::error::Release APK signature verification did not report Verifies"
             exit 1
           }
+          grep -Fq "Verified using v2 scheme (APK Signature Scheme v2): true" apksigner.txt || {
+            echo "::error::APK Signature Scheme v2 is required"
+            exit 1
+          }
           grep -Fq "Number of signers: 1" apksigner.txt || {
             echo "::error::Expected exactly one release APK signer"
             exit 1
