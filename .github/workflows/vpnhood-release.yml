@@ -101,17 +101,27 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          APK_DIR="vpnhood-android/bin/Release"
-          ALL_APKS=()
-          while IFS= read -r -d '' file; do ALL_APKS+=("$file"); done < <(find "$APK_DIR" -type f -name '*.apk' -print0)
-          apks=(vpnhood-android/bin/Release/net10.0-android36.1/publish/*-Signed.apk)
-          test "${#ALL_APKS[@]}" -eq 1 && test "${#apks[@]}" -eq 1 && test "${ALL_APKS[0]}" = "${apks[0]}" || {
-            echo "::error::Expected exactly one APK and it must be the sole published *-Signed.apk; found ${#ALL_APKS[@]} total and ${#apks[@]} signed"
-            printf '%s\n' "${ALL_APKS[@]}"
+          PUBLISH_DIR="vpnhood-android/bin/Release/net10.0-android36.1/publish"
+          test -d "$PUBLISH_DIR" || {
+            echo "::error::Release publish directory is missing: $PUBLISH_DIR" >&2
             exit 1
           }
-          APK="${apks[0]}"
-          [[ "$(basename "$APK")" != *-unsigned-* ]] || { echo "::error::Unsigned APK refused"; exit 1; }
+          mapfile -t PUBLISHED_APKS < <(find "$PUBLISH_DIR" -type f -name '*.apk' -print)
+          mapfile -t SIGNED_APKS < <(find "$PUBLISH_DIR" -type f -name '*-Signed.apk' -print)
+          test "${#PUBLISHED_APKS[@]}" -eq 1 &&
+            test "${#SIGNED_APKS[@]}" -eq 1 &&
+            test "${PUBLISHED_APKS[0]}" = "${SIGNED_APKS[0]}" || {
+              echo "::error::Expected exactly one APK in the publish output and it must be the sole *-Signed.apk; found ${#PUBLISHED_APKS[@]} total and ${#SIGNED_APKS[@]} signed" >&2
+              printf '%s\\n' "${PUBLISHED_APKS[@]}"
+              exit 1
+            }
+          APK="${SIGNED_APKS[0]}"
+          case "$(basename "$APK" | tr '[:upper:]' '[:lower:]')" in
+            *unsigned*)
+              echo "::error::Unsigned APK refused" >&2
+              exit 1
+              ;;
+          esac
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           test -x "$BUILD_TOOLS/apksigner" || { echo "::error::apksigner unavailable"; exit 1; }
           test -x "$BUILD_TOOLS/aapt" || { echo "::error::aapt unavailable"; exit 1; }
