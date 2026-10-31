@@ -172,6 +172,83 @@ jobs:
             echo "::error::Invalid release tag; expected vpnhood-android-vN"
             exit 1
           fi
+          REQUESTED_VERSION="${TAG##*-v}"
+          EXISTING_TAG_REFS="$(git ls-remote --tags origin 'refs/tags/vpnhood-android-v*')"
+          EXISTING_VERSIONS="$(printf '%s\\n' "$EXISTING_TAG_REFS" \\
+            | awk '{print $2}' \\
+            | grep -E '^refs/tags/vpnhood-android-v[0-9]+
+            echo "::error::Release $TAG already exists; refusing to modify existing assets"
+            exit 1
+          fi
+          remote_tags="$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
+          tag_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG" '$2 == ref {print $1}')"
+          peeled_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG^{}" '$2 == ref {print $1}')"
+          resolved_tag_sha="${peeled_sha:-$tag_sha}"
+          if [ -n "$resolved_tag_sha" ]; then
+            if [ "$resolved_tag_sha" != "$GITHUB_SHA" ]; then
+              echo "::error::Tag $TAG already exists at a different commit; refusing to move it"
+              exit 1
+            fi
+            echo "Tag $TAG already points to this workflow commit; reusing it"
+          else
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$TAG"
+          fi
+          gh release create "$TAG" --draft --verify-tag \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "GhostWeb VPN — VpnHood Android" \
+            --notes "GhostWeb VPN Android client built against VpnHood.Client and VpnHood.Client.Device.Android 5.0.616-prerelease. Source/license evidence is attached. The signed APK is verified with apksigner and SHA-256 in CI."
+          gh release upload "$TAG" \
+            release/GhostWeb-VPN-VpnHood-release.apk \
+            release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
+            release/apksigner.txt \
+            release/VPNHOOD-CLIENT-DEPENDENCIES.txt \
+            release/VPNHOOD-LGPL-2.1-LICENSE.txt \
+            --repo "$GITHUB_REPOSITORY"
+          mkdir -p verified-release
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'GhostWeb-VPN-VpnHood-release.apk' --dir verified-release
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'GhostWeb-VPN-VpnHood-release.apk.sha256' --dir verified-release
+          cmp -s release/GhostWeb-VPN-VpnHood-release.apk \
+            verified-release/GhostWeb-VPN-VpnHood-release.apk || {
+              echo "::error::Downloaded release APK differs from verified build"; exit 1;
+            }
+          cmp -s release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
+            verified-release/GhostWeb-VPN-VpnHood-release.apk.sha256 || {
+              echo "::error::Downloaded checksum manifest differs"; exit 1;
+            }
+          (cd verified-release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
+          EXPECTED="$(cut -d' ' -f1 release/GhostWeb-VPN-VpnHood-release.apk.sha256)"
+          ACTUAL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+            --jq '.assets[] | select(.name=="GhostWeb-VPN-VpnHood-release.apk") | .digest' \
+            | sed 's/^sha256://')"
+          test -n "$ACTUAL" && test "$EXPECTED" = "$ACTUAL" || {
+            echo "::error::GitHub release digest does not match verified APK"; exit 1;
+          }
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+          test "$IS_DRAFT" = false || { echo "::error::Release remains draft"; exit 1; }
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets
+
+      - name: Remove release signing material
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$RUNNER_TEMP/ghostweb-release.jks"
+          test ! -e "$RUNNER_TEMP/ghostweb-release.jks" || {
+            echo "::error::Release keystore cleanup failed"
+            exit 1
+          }
+ \\
+            | sed 's#^refs/tags/vpnhood-android-v##' \\
+            | sort -n || true)"
+          HIGHEST_VERSION="$(printf '%s\\n' "$EXISTING_VERSIONS" | tail -n 1)"
+          if [ -n "$HIGHEST_VERSION" ] && [ "$REQUESTED_VERSION" -lt "$HIGHEST_VERSION" ]; then
+            echo "::error::Refusing non-monotonic VpnHood release ${TAG}; highest existing tag is vpnhood-android-v${HIGHEST_VERSION}" >&2
+            exit 1
+          fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::Release $TAG already exists; refusing to modify existing assets"
             exit 1
