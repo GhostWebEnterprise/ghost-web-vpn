@@ -103,7 +103,17 @@ jobs:
             exit 1
           }
           echo "Verified embedded VpnHood browser UI SHA-256: $ACTUAL_WEB_ROOT"
-          sha256sum "$BROWSER_ZIP" | tee vpnhood-browser.sha256
+          unzip -p "$APK" "${WEB_ROOTS[0]}" > embedded-web-root.zip
+          test -s embedded-web-root.zip || {
+            echo "::error::Could not extract embedded VpnHood browser UI evidence" >&2
+            exit 1
+          }
+          EMBEDDED_WEB_ROOT_SHA256="$(sha256sum embedded-web-root.zip | cut -d' ' -f1)"
+          test "$EMBEDDED_WEB_ROOT_SHA256" = "$EXPECTED_WEB_ROOT" || {
+            echo "::error::Extracted browser UI evidence digest differs from upstream build" >&2
+            exit 1
+          }
+          printf '%s  embedded-web-root.zip\\n' "$EMBEDDED_WEB_ROOT_SHA256" | tee vpnhood-browser.sha256
           [[ "$(basename "$APK")" != *unsigned* ]] || {
             echo "::error::Unsigned VpnHood APK refused"
             exit 1
@@ -136,6 +146,8 @@ jobs:
           )
           cp vpnhood-upstream.sha vpnhood-debug-artifact/
           cp apk-contents.txt apksigner.txt apk-badging.txt vpnhood-browser.sha256 vpnhood-debug-artifact/
+          cp embedded-web-root.zip vpnhood-debug-artifact/
+          (cd vpnhood-debug-artifact && sha256sum --check vpnhood-browser.sha256)
           cp vpnhood-upstream/LICENSE vpnhood-debug-artifact/VPNHOOD-LGPL-2.1-LICENSE.txt
       - name: Upload VpnHood debug APK evidence
         uses: actions/upload-artifact@v4
