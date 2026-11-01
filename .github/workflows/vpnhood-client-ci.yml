@@ -5,11 +5,13 @@ on:
     branches: [main, migration/vpnhood-android]
     paths:
       - "vpnhood-android/**"
+      - "tests/test_vpnhood_activity_lifecycle.py"
       - ".github/workflows/vpnhood-client-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "vpnhood-android/**"
+      - "tests/test_vpnhood_activity_lifecycle.py"
       - ".github/workflows/vpnhood-client-ci.yml"
   workflow_dispatch:
 
@@ -22,6 +24,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Test Android activity session lifecycle contract
+        run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
       - name: Install .NET 10
         uses: actions/setup-dotnet@v4
         with:
@@ -38,9 +42,96 @@ jobs:
           find "$pkg" -type f \( -name '*.dll' -o -name '*.xml' \) -print
           find "$pkg" -type f -name '*.xml' -exec grep -n -m 12 'AndroidDevice' {} + || true
           find "$pkg" -type f -name '*.dll' -exec strings {} + | grep -E 'AndroidDevice|VpnHood\.Client\.Device|VpnHood\.Core\.Client' | head -30 || true
+      - name: Inspect pinned VpnHood client API signatures
+        run: |
+          set -euo pipefail
+          for pkg in \
+            "$HOME/.nuget/packages/vpnhood.client/5.0.616-prerelease" \
+            "$HOME/.nuget/packages/vpnhood.client.device.android/5.0.616-prerelease"; do
+            test -d "$pkg" || { echo "::error::Expected VpnHood package missing: $pkg"; exit 1; }
+            echo "=== XML API docs: $pkg ==="
+            find "$pkg" -type f -name '*.xml' -exec grep -n -E 'VpnHoodClient|ClientOptions|ClientState|StateChanged|Connect|Disconnect|Dispose|AccessKey|CreatePacketCapture|IUiContext|Token' {} + || true
+            echo "=== Assembly symbols: $pkg ==="
+            find "$pkg" -type f -name '*.dll' -exec strings {} + | grep -E 'VpnHoodClient|ClientOptions|ClientState|StateChanged|Connect|Disconnect|Dispose|AccessKey|CreatePacketCapture|IUiContext|Token' | sort -u | head -100 || true
+          done
       - name: Compile GhostWeb VpnHood Android project
         run: |
           set -euo pipefail
           dotnet build vpnhood-android/GhostWeb.VpnHood.Android.csproj \
             --no-restore -c Debug -f net10.0-android36.1
-      # Compilation only: never publish or upload an unverified APK.
+      - name: Package GhostWeb VpnHood Android debug APK
+        run: |
+          set -euo pipefail
+          dotnet publish vpnhood-android/GhostWeb.VpnHood.Android.csproj \
+            --no-restore -c Debug -f net10.0-android36.1 \
+            -p:AndroidPackageFormats=apk \
+            -p:EmbedAssembliesIntoApk=true
+          mapfile -t APKS < <(find vpnhood-android/bin/Debug/net10.0-android36.1/publish \
+            -maxdepth 1 -type f -name '*-Signed.apk' -print)
+          test "${#APKS[@]}" -eq 1 || {
+            echo "::error::Expected exactly one debug-signed GhostWeb VpnHood APK; found ${#APKS[@]}."
+            find vpnhood-android/bin/Debug/net10.0-android36.1/publish -type f -name '*.apk' -print
+            exit 1
+          }
+          APK="${APKS[0]}"
+          [[ "$(basename "$APK")" != *-unsigned-* ]] || {
+            echo "::error::Unsigned GhostWeb VpnHood debug APK refused."
+            exit 1
+          }
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK_ROOT" || { echo "::error::Android SDK path is unavailable."; exit 1; }
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          AAPT="$(find "$SDK_ROOT/build-tools" -type f -name aapt -print | sort -V | tail -1)"
+          test -n "$APKSIGNER" && test -x "$APKSIGNER" || {
+            echo "::error::apksigner is unavailable."
+            exit 1
+          }
+          test -n "$AAPT" && test -x "$AAPT" || {
+            echo "::error::aapt is unavailable."
+            exit 1
+          }
+          mkdir -p vpnhood-client-debug-artifact
+          "$APKSIGNER" verify --verbose --print-certs "$APK" \
+            | tee vpnhood-client-debug-artifact/apksigner.txt
+          grep -Fq "Verifies" vpnhood-client-debug-artifact/apksigner.txt || {
+            echo "::error::Debug APK signature verification did not report Verifies."
+            exit 1
+          }
+          grep -Fq "Number of signers: 1" vpnhood-client-debug-artifact/apksigner.txt || {
+            echo "::error::Expected exactly one debug APK signer."
+            exit 1
+          }
+          "$AAPT" dump badging "$APK" | tee vpnhood-client-debug-artifact/apk-badging.txt
+          grep -Fq "package: name='cfd.ghostbin.ghostwebvpn'" vpnhood-client-debug-artifact/apk-badging.txt || {
+            echo "::error::Unexpected GhostWeb VpnHood debug APK package ID."
+            exit 1
+          }
+          cp "$APK" vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk
+          (
+            cd vpnhood-client-debug-artifact
+            sha256sum GhostWeb-VpnHood-Android-debug.apk \
+              | tee GhostWeb-VpnHood-Android-debug.apk.sha256
+            sha256sum --check GhostWeb-VpnHood-Android-debug.apk.sha256
+          )
+          unzip -l vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk \
+            | tee vpnhood-client-debug-artifact/apk-contents.txt
+          grep -Fq "lib/arm64-v8a/lib_VpnHood.Client.dll.so" vpnhood-client-debug-artifact/apk-contents.txt || {
+            echo "::error::Standalone debug APK is missing compiled VpnHood.Client library for arm64-v8a."
+            exit 1
+          }
+          grep -Fq "lib/arm64-v8a/lib_VpnHood.Client.Device.Android.dll.so" vpnhood-client-debug-artifact/apk-contents.txt || {
+            echo "::error::Standalone debug APK is missing compiled VpnHood.Client.Device.Android library for arm64-v8a."
+            exit 1
+          }
+          if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' \
+            vpnhood-client-debug-artifact/apk-contents.txt; then
+            echo "::error::Legacy WireGuard native library found in GhostWeb VpnHood client APK."
+            exit 1
+          fi
+      - name: Upload verified GhostWeb VpnHood client debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostweb-vpn-vpnhood-client-debug
+          path: vpnhood-client-debug-artifact/
+          if-no-files-found: error
+          retention-days: 14
