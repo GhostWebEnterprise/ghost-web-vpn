@@ -1,17 +1,25 @@
 # GhostWeb Secure Server Pool
 
-This directory defines the first production policy layer for GhostWeb VPN.
+This pull request introduces a **proposed policy schema and validation gate** for a future GhostWeb-controlled VpnHood server pool. It is not yet wired into the Android client and must not be treated as an active protection feature.
 
-## Security rules
+## Current implementation boundary
 
-- Server access keys are never committed to Git.
-- A region remains disabled until a real GhostWeb-controlled VpnHood SERVER is provisioned and its access key is stored securely.
-- Smart Connect selects only healthy configured nodes and never falls back to an unprotected connection.
-- Auto-Protect requires VPN connectivity for protected traffic, keeps Private DNS enabled, and reconnects after network changes.
-- The existing `android-v30` release remains the rollback baseline.
+- The current Android client still asks the user to enter a VpnHood access key manually.
+- The client does not yet consume `server-pool.json` or `protection-policy.json`.
+- Smart Connect health checks, lowest-latency node selection, automatic reconnection policy, and Auto-Protect enforcement are not implemented by these JSON files.
+- No GhostWeb-controlled production VpnHood nodes or access keys are provisioned by this change.
+- All initial region slots remain disabled until a real server is provisioned, independently tested, and its access key is delivered through a secure device-side provisioning flow.
 
-## Initial regions
+## Security rules for the future integration
 
-Sweden, Finland, Netherlands, Germany and United States. These are desired pool slots, not claims that servers already exist.
+- Never commit VpnHood access keys to Git.
+- Keep protected traffic fail-closed; never fall back to an unprotected route.
+- Store provisioned access keys in Android-backed secure storage, not in repository configuration.
+- Validate server health and policy state before enabling a region.
+- Keep the existing `vpnhood-android-v1` release as the production rollback baseline until a replacement has passed the full release gate.
+
+## Initial region slots
+
+Sweden, Finland, Netherlands, Germany and United States are planned slots only. Their presence in the schema is not evidence that servers exist or are reachable.
 
 VpnHood SERVER must run on a controlled VPS and issue a `vh://` access key. Treat every access key as a secret.
