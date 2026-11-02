@@ -119,6 +119,9 @@ public class MainActivity : ActivityEvent
             client.StateChanged += OnClientStateChanged;
             UpdateStatus($"VPN state: {client.State}");
             await client.Connect();
+            // Do not retain the access key in the visible input after a successful connection.
+            if (_accessKeyInput is not null)
+                _accessKeyInput.Text = string.Empty;
             UpdateStatus($"VPN state: {client.State}");
         }
         catch (Exception)
