@@ -234,7 +234,6 @@ jobs:
             release/VPNHOOD-CLIENT-DEPENDENCIES.txt \
             release/vpnhood-upstream.sha \
             release/VPNHOOD-LGPL-2.1-LICENSE.txt \
-            release/VPNHOOD-LGPL-2.1-LICENSE.txt \
             --repo "$GITHUB_REPOSITORY"
           mkdir -p verified-release
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
