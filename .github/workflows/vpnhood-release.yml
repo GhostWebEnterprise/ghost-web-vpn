@@ -232,6 +232,8 @@ jobs:
             release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
             release/apksigner.txt \
             release/VPNHOOD-CLIENT-DEPENDENCIES.txt \
+            release/vpnhood-upstream.sha \
+            release/VPNHOOD-LGPL-2.1-LICENSE.txt \
             release/VPNHOOD-LGPL-2.1-LICENSE.txt \
             --repo "$GITHUB_REPOSITORY"
           mkdir -p verified-release
