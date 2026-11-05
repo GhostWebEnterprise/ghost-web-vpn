@@ -20,6 +20,13 @@ class VpnHoodActivityLifecycleTests(unittest.TestCase):
         self.assertIn("AttachExistingClient()", activity)
         self.assertIn("VpnHoodClientSession.SetClient(client)", activity)
         self.assertIn("InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword", activity)
+        self.assertIn("_accessKeyInput.SaveEnabled = false", activity)
+
+    def test_access_key_input_is_cleared_only_after_successful_connect(self):
+        activity = (ANDROID / "MainActivity.cs").read_text(encoding="utf-8")
+        connect = activity.split("await client.Connect();", 1)[1]
+        connect = connect.split("catch (Exception)", 1)[0]
+        self.assertIn("_accessKeyInput.Text = string.Empty", connect)
 
     def test_activity_destroy_detaches_observer_without_disposing_tunnel(self):
         activity = (ANDROID / "MainActivity.cs").read_text(encoding="utf-8")

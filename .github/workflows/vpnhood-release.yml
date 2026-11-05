@@ -152,6 +152,10 @@ jobs:
             exit 1
           }
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
+          if grep -Fq "application-debuggable" apk-badging.txt; then
+            echo "::error::Release APK is debuggable; refusing production release" >&2
+            exit 1
+          fi
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           grep -Eq "launchable-activity: .* icon='[^']*ghostweb_vpn_logo[^']*'" apk-badging.txt || {
             echo "::error::GhostWeb launcher activity icon metadata is missing"
@@ -232,6 +236,7 @@ jobs:
             release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
             release/apksigner.txt \
             release/VPNHOOD-CLIENT-DEPENDENCIES.txt \
+            release/vpnhood-upstream.sha \
             release/VPNHOOD-LGPL-2.1-LICENSE.txt \
             --repo "$GITHUB_REPOSITORY"
           mkdir -p verified-release
