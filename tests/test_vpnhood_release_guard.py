@@ -41,6 +41,25 @@ class VpnHoodReleaseBadgingGuardTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("missing or empty", result.stderr)
 
+    def test_all_signed_release_workflows_apply_the_guard(self):
+        legacy_workflow = (
+            ROOT / ".github" / "workflows" / "vpnhood-android.yml"
+        ).read_text(encoding="utf-8")
+        legacy_release = legacy_workflow.split("  signed-release-build:", 1)[1]
+        self.assertIn(
+            "bash scripts/verify-vpnhood-release-badging.sh apk-badging.txt",
+            legacy_release,
+        )
+
+        verified_workflow = (
+            ROOT / ".github" / "workflows" / "vpnhood-release.yml"
+        ).read_text(encoding="utf-8")
+        verified_release = verified_workflow.split("  verified-release:", 1)[1]
+        self.assertIn(
+            "bash scripts/verify-vpnhood-release-badging.sh apk-badging.txt",
+            verified_release,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
