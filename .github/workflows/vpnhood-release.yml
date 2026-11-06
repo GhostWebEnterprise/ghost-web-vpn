@@ -9,12 +9,14 @@ on:
       - ".github/workflows/vpnhood-release.yml"
       - "vpnhood-android/**"
       - "tests/test_vpnhood_activity_lifecycle.py"
+      - "tests/test_vpnhood_release_guard.py"
   pull_request:
     branches: [main]
     paths:
       - ".github/workflows/vpnhood-release.yml"
       - "vpnhood-android/**"
       - "tests/test_vpnhood_activity_lifecycle.py"
+      - "tests/test_vpnhood_release_guard.py"
   workflow_dispatch:
     inputs:
       release_tag:
@@ -29,7 +31,17 @@ env:
   VPNHOOD_UPSTREAM_REF: b4fec6567badcd0832e5157a6597f2b5b6b20fe0
 
 jobs:
+  validate-release-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Android activity session lifecycle contract
+        run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
+      - name: Test debuggable APK release guard
+        run: python3 -m unittest -v tests/test_vpnhood_release_guard.py
+
   verified-release:
+    needs: validate-release-guard
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
@@ -152,10 +164,7 @@ jobs:
             exit 1
           }
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
-          if grep -Fq "application-debuggable" apk-badging.txt; then
-            echo "::error::Release APK is debuggable; refusing production release" >&2
-            exit 1
-          fi
+          bash scripts/verify-vpnhood-release-badging.sh apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           grep -Eq "launchable-activity: .* icon='[^']*ghostweb_vpn_logo[^']*'" apk-badging.txt || {
             echo "::error::GhostWeb launcher activity icon metadata is missing"
