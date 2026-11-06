@@ -40,5 +40,12 @@ class VpnHoodActivityLifecycleTests(unittest.TestCase):
         self.assertIn("Connection failed and cleanup failed; VPN state is unknown", activity)
 
 
+    def test_access_key_input_is_cleared_only_after_successful_connect(self):
+        activity = (ANDROID / "MainActivity.cs").read_text(encoding="utf-8")
+        connect = activity.split("await client.Connect();", 1)[1]
+        connect = connect.split("catch (Exception)", 1)[0]
+        self.assertIn("_accessKeyInput.Text = string.Empty", connect)
+
+
 if __name__ == "__main__":
     unittest.main()
