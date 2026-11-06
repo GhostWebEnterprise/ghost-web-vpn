@@ -300,6 +300,7 @@ jobs:
             exit 1
           }
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
+          bash scripts/verify-vpnhood-release-badging.sh apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-release-contents.txt
           if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-release-contents.txt; then

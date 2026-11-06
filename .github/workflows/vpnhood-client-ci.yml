@@ -6,12 +6,16 @@ on:
     paths:
       - "vpnhood-android/**"
       - "tests/test_vpnhood_activity_lifecycle.py"
+      - "tests/test_vpnhood_nuget_provenance.py"
+      - "scripts/record-vpnhood-nuget-provenance.py"
       - ".github/workflows/vpnhood-client-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "vpnhood-android/**"
       - "tests/test_vpnhood_activity_lifecycle.py"
+      - "tests/test_vpnhood_nuget_provenance.py"
+      - "scripts/record-vpnhood-nuget-provenance.py"
       - ".github/workflows/vpnhood-client-ci.yml"
   workflow_dispatch:
 
@@ -26,6 +30,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test Android activity session lifecycle contract
         run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
+      - name: Test NuGet package provenance recorder
+        run: python3 -m unittest -v tests/test_vpnhood_nuget_provenance.py
       - name: Install .NET 10
         uses: actions/setup-dotnet@v4
         with:
@@ -34,6 +40,12 @@ jobs:
         run: dotnet workload install android
       - name: Restore GhostWeb VpnHood Android project
         run: dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
+      - name: Record exact restored NuGet package provenance
+        run: |
+          set -euo pipefail
+          python3 scripts/record-vpnhood-nuget-provenance.py \
+            --project vpnhood-android/GhostWeb.VpnHood.Android.csproj \
+            --output VPNHOOD-NUGET-PACKAGES.txt
       - name: Inspect restored VpnHood Android API assembly
         run: |
           set -euo pipefail
@@ -107,6 +119,7 @@ jobs:
             exit 1
           }
           cp "$APK" vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk
+          cp VPNHOOD-NUGET-PACKAGES.txt vpnhood-client-debug-artifact/
           (
             cd vpnhood-client-debug-artifact
             sha256sum GhostWeb-VpnHood-Android-debug.apk \
