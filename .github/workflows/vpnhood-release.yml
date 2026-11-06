@@ -295,6 +295,7 @@ jobs:
           cmp -s release/VPNHOOD-NUGET-PACKAGES.txt verified-release/VPNHOOD-NUGET-PACKAGES.txt || {
             echo "::error::Downloaded NuGet package provenance differs from the verified build report"; exit 1;
           }
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern 'apksigner.txt' --dir verified-release
           cmp -s release/apksigner.txt verified-release/apksigner.txt || {
             echo "::error::Downloaded apksigner report differs from the verified build report"; exit 1;

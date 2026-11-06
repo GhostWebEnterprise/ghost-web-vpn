@@ -38,7 +38,7 @@ def write_restored_package(root: Path, package_id: str, version: str) -> None:
     content_hash = base64.b64encode(
         hashlib.sha512(package_bytes).digest()
     ).decode("ascii")
-    (package_dir / ".nupkg.sha512").write_text(content_hash, encoding="utf-8")
+    (package_dir / f"{nupkg.name}.sha512").write_text(content_hash, encoding="utf-8")
     (package_dir / ".nupkg.metadata").write_text(
         json.dumps(
             {
@@ -108,6 +108,10 @@ class VpnHoodNuGetProvenanceTests(unittest.TestCase):
         )
         self.assertIn("Package: VpnHood.Client", report)
         self.assertIn("Package: VpnHood.Client.Device.Android", report)
+        self.assertIn("Package SHA-256 (cached .nupkg bytes):", report)
+        self.assertIn("Package SHA-512 (recomputed from cached .nupkg bytes/Base64):", report)
+        self.assertIn("NuGet restore contentHash (from .nupkg.metadata):", report)
+        self.assertIn("NuGet cache .nupkg.sha512:", report)
         self.assertIn("NuGet source host: https://packages.example.test", report)
         self.assertIn(
             "Nuspec repository URL: https://github.com/vpnhood/VpnHood", report
@@ -127,7 +131,7 @@ class VpnHoodNuGetProvenanceTests(unittest.TestCase):
         metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
         result = self.run_recorder()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("contentHash mismatch", result.stderr)
+        self.assertIn("metadata/cache hash mismatch", result.stderr)
 
     def test_rejects_changed_package_version(self):
         project = self.project.read_text(encoding="utf-8")
