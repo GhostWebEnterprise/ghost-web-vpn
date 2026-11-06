@@ -110,8 +110,8 @@ class VpnHoodNuGetProvenanceTests(unittest.TestCase):
         self.assertIn("Package: VpnHood.Client.Device.Android", report)
         self.assertIn("Package SHA-256 (cached .nupkg bytes):", report)
         self.assertIn("Package SHA-512 (recomputed from cached .nupkg bytes/Base64):", report)
-        self.assertIn("NuGet restore contentHash (from .nupkg.metadata):", report)
-        self.assertIn("NuGet cache .nupkg.sha512:", report)
+        self.assertIn("NuGet restore contentHash (signature metadata excluded):", report)
+        self.assertIn("NuGet full-archive .nupkg.sha512:", report)
         self.assertIn("NuGet source host: https://packages.example.test", report)
         self.assertIn(
             "Nuspec repository URL: https://github.com/vpnhood/VpnHood", report
@@ -131,7 +131,29 @@ class VpnHoodNuGetProvenanceTests(unittest.TestCase):
         metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
         result = self.run_recorder()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("metadata/cache hash mismatch", result.stderr)
+        self.assertIn("not valid Base64", result.stderr)
+
+    def test_records_signature_excluded_content_hash_separately(self):
+        package_dir = self.packages / "vpnhood.client" / "5.0.616-prerelease"
+        metadata_path = package_dir / ".nupkg.metadata"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["contentHash"] = base64.b64encode(
+            hashlib.sha512(b"signature-excluded package content").digest()
+        ).decode("ascii")
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+        result = self.run_recorder()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = self.output.read_text(encoding="utf-8")
+        self.assertIn("NuGet full-archive .nupkg.sha512:", report)
+        self.assertIn(
+            "NuGet restore contentHash (signature metadata excluded): "
+            + metadata["contentHash"],
+            report,
+        )
+        self.assertIn(
+            "it is not expected to equal the full-archive .nupkg.sha512",
+            report,
+        )
 
     def test_rejects_changed_package_version(self):
         project = self.project.read_text(encoding="utf-8")

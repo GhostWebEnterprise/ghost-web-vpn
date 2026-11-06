@@ -164,6 +164,17 @@ def record_package(
         package_dir / ".nupkg.sha512",
         package_dir / f"{nupkg.name}.sha512",
     ]
+    try:
+        decoded_content_hash = base64.b64decode(content_hash, validate=True)
+    except ValueError as exc:
+        raise ValueError(
+            f"NuGet metadata contentHash is not valid Base64 for {package_id} {version}"
+        ) from exc
+    if len(decoded_content_hash) != 64:
+        raise ValueError(
+            f"NuGet metadata contentHash is not a SHA-512 digest for {package_id} {version}"
+        )
+
     cache_hashes = [
         path.read_text(encoding="utf-8").strip()
         for path in cache_hash_paths
@@ -174,11 +185,18 @@ def record_package(
             f"Conflicting NuGet cache .nupkg.sha512 files for {package_id} {version}"
         )
     cached_hash = cache_hashes[0] if cache_hashes else "not present"
-    if cached_hash != "not present" and cached_hash != content_hash:
-        raise ValueError(
-            f"NuGet metadata/cache hash mismatch for {package_id} {version}: "
-            f"metadata={content_hash}; cache={cached_hash}"
-        )
+    if cached_hash != "not present":
+        try:
+            decoded_cache_hash = base64.b64decode(cached_hash, validate=True)
+        except ValueError as exc:
+            raise ValueError(
+                f"NuGet .nupkg.sha512 is not valid Base64 for {package_id} {version}"
+            ) from exc
+        if len(decoded_cache_hash) != 64 or cached_hash != actual_content_hash:
+            raise ValueError(
+                f"Cached .nupkg.sha512 does not match the full cached package bytes for {package_id} {version}: "
+                f"cache={cached_hash}; recomputed={actual_content_hash}"
+            )
 
     repository_url, repository_commit, repository_type = inspect_nuspec(
         nupkg, package_id, version
@@ -189,9 +207,9 @@ def record_package(
         f"Package file: {nupkg.name}",
         f"Package SHA-256 (cached .nupkg bytes): {hashlib.sha256(package_bytes).hexdigest()}",
         f"Package SHA-512 (recomputed from cached .nupkg bytes/Base64): {actual_content_hash}",
-        f"NuGet restore contentHash (from .nupkg.metadata): {content_hash}",
-        f"NuGet cache .nupkg.sha512: {cached_hash}",
-        f"Raw package SHA-512 equals NuGet restore contentHash: {'yes' if actual_content_hash == content_hash else 'no'}",
+        f"NuGet full-archive .nupkg.sha512: {cached_hash}",
+        f"NuGet restore contentHash (signature metadata excluded): {content_hash}",
+        "NuGet .nupkg.metadata contentHash excludes package signature metadata; it is not expected to equal the full-archive .nupkg.sha512.",
         f"NuGet source host: {safe_source_host(metadata.get('source'))}",
         f"Nuspec repository type: {repository_type}",
         f"Nuspec repository URL: {repository_url}",
