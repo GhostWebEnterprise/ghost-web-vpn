@@ -160,18 +160,24 @@ def record_package(
     actual_content_hash = base64.b64encode(
         hashlib.sha512(package_bytes).digest()
     ).decode("ascii")
+    sha512_path = package_dir / f"{nupkg.name}.sha512"
+    cached_hash = (
+        sha512_path.read_text(encoding="utf-8").strip()
+        if sha512_path.is_file()
+        else "missing"
+    )
+    if content_hash != cached_hash:
+        raise ValueError(
+            f"NuGet metadata/cache hash mismatch for {package_id} {version}: "
+            f"metadata={content_hash}; cache={cached_hash}; "
+            f"recomputed_sha512={actual_content_hash}"
+        )
     if actual_content_hash != content_hash:
         raise ValueError(
-            f"NuGet SHA-512 contentHash mismatch for {package_id} {version}"
+            f"Recomputed .nupkg SHA-512 differs for {package_id} {version}: "
+            f"metadata={content_hash}; cache={cached_hash}; "
+            f"recomputed_sha512={actual_content_hash}"
         )
-
-    sha512_path = package_dir / f"{nupkg.name}.sha512"
-    if sha512_path.is_file():
-        cached_hash = sha512_path.read_text(encoding="utf-8").strip()
-        if cached_hash != actual_content_hash:
-            raise ValueError(
-                f"Cached .nupkg.sha512 mismatch for {package_id} {version}"
-            )
 
     repository_url, repository_commit, repository_type = inspect_nuspec(
         nupkg, package_id, version
