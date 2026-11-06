@@ -8,7 +8,10 @@ on:
     paths:
       - ".github/workflows/vpnhood-release.yml"
       - ".github/workflows/vpnhood-android.yml"
+      - ".github/workflows/vpnhood-client-ci.yml"
       - "vpnhood-android/**"
+      - "scripts/record-vpnhood-nuget-provenance.py"
+      - "tests/test_vpnhood_nuget_provenance.py"
       - "tests/test_vpnhood_activity_lifecycle.py"
       - "tests/test_vpnhood_release_guard.py"
       - "scripts/verify-vpnhood-release-badging.sh"
@@ -17,7 +20,10 @@ on:
     paths:
       - ".github/workflows/vpnhood-release.yml"
       - ".github/workflows/vpnhood-android.yml"
+      - ".github/workflows/vpnhood-client-ci.yml"
       - "vpnhood-android/**"
+      - "scripts/record-vpnhood-nuget-provenance.py"
+      - "tests/test_vpnhood_nuget_provenance.py"
       - "tests/test_vpnhood_activity_lifecycle.py"
       - "tests/test_vpnhood_release_guard.py"
       - "scripts/verify-vpnhood-release-badging.sh"
@@ -43,6 +49,8 @@ jobs:
         run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
       - name: Test debuggable APK release guard
         run: python3 -m unittest -v tests/test_vpnhood_release_guard.py
+      - name: Test NuGet package provenance recorder
+        run: python3 -m unittest -v tests/test_vpnhood_nuget_provenance.py
 
   verified-release:
     needs: validate-release-guard
@@ -81,6 +89,13 @@ jobs:
 
       - name: Restore the GhostWeb VpnHood Android client
         run: dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
+      - name: Record exact restored NuGet package provenance
+        run: |
+          set -euo pipefail
+          python3 scripts/record-vpnhood-nuget-provenance.py \
+            --project vpnhood-android/GhostWeb.VpnHood.Android.csproj \
+            --upstream-revision-file vpnhood-upstream.sha \
+            --output VPNHOOD-NUGET-PACKAGES.txt
 
       - name: Decode required Android signing keystore
         env:
@@ -198,6 +213,7 @@ jobs:
           cp apksigner.txt apk-badging.txt apk-contents.txt vpnhood-upstream.sha release/
           cp vpnhood-upstream/LICENSE release/VPNHOOD-LGPL-2.1-LICENSE.txt
           cp vpnhood-android/GhostWeb.VpnHood.Android.csproj release/
+          cp VPNHOOD-NUGET-PACKAGES.txt release/
           grep -E 'PackageReference Include="VpnHood\.(Client|Client\.Device\.Android)"' vpnhood-android/GhostWeb.VpnHood.Android.csproj \
             > release/VPNHOOD-CLIENT-DEPENDENCIES.txt
           test -s release/VPNHOOD-CLIENT-DEPENDENCIES.txt
@@ -257,6 +273,7 @@ jobs:
             release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
             release/apksigner.txt \
             release/VPNHOOD-CLIENT-DEPENDENCIES.txt \
+            release/VPNHOOD-NUGET-PACKAGES.txt \
             release/VPNHOOD-LGPL-2.1-LICENSE.txt \
             --repo "$GITHUB_REPOSITORY"
           mkdir -p verified-release
@@ -274,6 +291,10 @@ jobs:
             }
           (cd verified-release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'VPNHOOD-NUGET-PACKAGES.txt' --dir verified-release
+          cmp -s release/VPNHOOD-NUGET-PACKAGES.txt verified-release/VPNHOOD-NUGET-PACKAGES.txt || {
+            echo "::error::Downloaded NuGet package provenance differs from the verified build report"; exit 1;
+          }
             --pattern 'apksigner.txt' --dir verified-release
           cmp -s release/apksigner.txt verified-release/apksigner.txt || {
             echo "::error::Downloaded apksigner report differs from the verified build report"; exit 1;
