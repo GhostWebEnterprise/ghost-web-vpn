@@ -45,6 +45,8 @@ public class MainActivity : ActivityEvent
             InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword,
         };
         _accessKeyInput.SetSingleLine(true);
+        // Never serialize a VPN access key into Activity saved-instance state.
+        _accessKeyInput.SaveEnabled = false;
         layout.AddView(_accessKeyInput, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MatchParent,
             ViewGroup.LayoutParams.WrapContent));
