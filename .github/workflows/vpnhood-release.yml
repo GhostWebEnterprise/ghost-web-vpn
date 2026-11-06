@@ -10,6 +10,7 @@ on:
       - "vpnhood-android/**"
       - "tests/test_vpnhood_activity_lifecycle.py"
       - "tests/test_vpnhood_release_guard.py"
+      - "scripts/verify-vpnhood-release-badging.sh"
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +18,7 @@ on:
       - "vpnhood-android/**"
       - "tests/test_vpnhood_activity_lifecycle.py"
       - "tests/test_vpnhood_release_guard.py"
+      - "scripts/verify-vpnhood-release-badging.sh"
   workflow_dispatch:
     inputs:
       release_tag:
