@@ -45,6 +45,8 @@ public class MainActivity : ActivityEvent
             InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword,
         };
         _accessKeyInput.SetSingleLine(true);
+        // Never serialize a VPN access key into Activity saved-instance state.
+        _accessKeyInput.SaveEnabled = false;
         layout.AddView(_accessKeyInput, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MatchParent,
             ViewGroup.LayoutParams.WrapContent));
@@ -117,6 +119,9 @@ public class MainActivity : ActivityEvent
             client.StateChanged += OnClientStateChanged;
             UpdateStatus($"VPN state: {client.State}");
             await client.Connect();
+            // Do not retain the access key in the input after a successful connection.
+            if (_accessKeyInput is not null)
+                _accessKeyInput.Text = string.Empty;
             UpdateStatus($"VPN state: {client.State}");
         }
         catch (Exception)
