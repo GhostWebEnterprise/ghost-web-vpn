@@ -60,6 +60,20 @@ class VpnHoodReleaseBadgingGuardTests(unittest.TestCase):
             verified_release,
         )
 
+    def test_verified_release_requires_compiled_vpnhood_android_assemblies(self):
+        verified_workflow = (
+            ROOT / ".github" / "workflows" / "vpnhood-release.yml"
+        ).read_text(encoding="utf-8")
+        verified_release = verified_workflow.split("  verified-release:", 1)[1]
+        self.assertIn(
+            "grep -Fq 'lib/arm64-v8a/lib_VpnHood.Client.dll.so' apk-contents.txt",
+            verified_release,
+        )
+        self.assertIn(
+            "grep -Fq 'lib/arm64-v8a/lib_VpnHood.Client.Device.Android.dll.so' apk-contents.txt",
+            verified_release,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
