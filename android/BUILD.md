@@ -10,7 +10,7 @@ That project uses the pinned `VpnHood.Client` and `VpnHood.Client.Device.Android
 
 ## Production release policy
 
-The only supported VpnHood Android production release path is `.github/workflows/vpnhood-release.yml`, manually dispatched from the protected `main` branch.
+The only supported VpnHood Android production release path is `.github/workflows/vpnhood-release.yml`, manually dispatched from the `main` branch.
 
 That workflow:
 
@@ -19,7 +19,7 @@ That workflow:
 - requires exactly one signed APK and rejects unsigned outputs;
 - verifies the APK with `apksigner`, including V2 signature, one signer, and the pinned existing release certificate;
 - checks package and GhostWeb branding metadata and excludes legacy WireGuard native libraries;
-- creates checksum and signer evidence, then downloads the uploaded assets and compares them byte-for-byte before making the draft release public.
+- creates checksum and signer evidence, then downloads the APK, checksum manifest, NuGet package provenance report, and signer report and compares those files byte-for-byte before making the draft release public.
 
 Pull-request and ordinary push runs do not receive production signing secrets and do not publish a production release.
 

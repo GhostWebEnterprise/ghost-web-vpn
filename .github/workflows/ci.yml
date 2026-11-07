@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Test VpnHood Android activity session lifecycle contract
+        run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
       - name: Validate manifest JSON
         run: python -m json.tool manifest.json >/dev/null
       - name: Syntax-check extension scripts
