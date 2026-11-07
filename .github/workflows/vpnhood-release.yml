@@ -38,7 +38,7 @@ permissions:
   contents: read
 
 env:
-  VPNHOOD_UPSTREAM_REF: b4fec6567badcd0832e5157a6597f2b5b6b20fe0
+  VPNHOOD_UPSTREAM_REF: 074e4b49b51c15e51aeae0d844cde4f6b02122ec
 
 jobs:
   validate-release-guard:
