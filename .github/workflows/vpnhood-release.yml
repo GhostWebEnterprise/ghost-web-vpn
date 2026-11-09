@@ -351,6 +351,7 @@ jobs:
             exit 1
           }
 
+          audit_failed=0
           for tag in android-v22 android-v24; do
             case "$tag" in
               android-v22)
@@ -367,46 +368,73 @@ jobs:
 
             apk="$download_dir/$tag.apk"
             report="audit/legacy/$tag.apksigner.txt"
-            curl --fail --location --retry 3 --retry-all-errors "$url" --output "$apk"
+            signature_status="unverified"
+            if ! curl --fail --location --retry 3 --retry-all-errors "$url" --output "$apk"; then
+              echo "::error::Unable to download $tag release asset"
+              audit_failed=1
+              printf 'Download failed for %s\n' "$tag" > "$report"
+              {
+                printf 'tag=%s\n' "$tag"
+                printf 'signature_status=download-failed\n'
+              } > "audit/legacy/$tag.txt"
+              continue
+            fi
 
             actual_size="$(stat -c '%s' "$apk")"
-            test "$actual_size" = "$expected_size" || {
+            if [ "$actual_size" != "$expected_size" ]; then
               echo "::error::$tag asset size mismatch: expected $expected_size, got $actual_size"
-              exit 1
-            }
-            printf '%s  %s\n' "$expected_sha256" "$apk" | sha256sum --check -
+              audit_failed=1
+            fi
+            if ! printf '%s  %s\n' "$expected_sha256" "$apk" | sha256sum --check -; then
+              echo "::error::$tag asset SHA-256 differs from GitHub release metadata"
+              audit_failed=1
+            fi
 
-            if ! "$APKSIGNER" verify --verbose --print-certs "$apk" > "$report" 2>&1; then
+            if "$APKSIGNER" verify --verbose --print-certs "$apk" > "$report" 2>&1; then
+              signature_status="verified"
+              if ! grep -Fq "Verifies" "$report"; then
+                echo "::error::$tag APK signer did not report Verifies"
+                signature_status="invalid"
+                audit_failed=1
+              fi
+              if ! grep -Fq "Verified using v2 scheme (APK Signature Scheme v2): true" "$report"; then
+                echo "::error::$tag APK does not have a verified V2 signature"
+                signature_status="invalid"
+                audit_failed=1
+              fi
+              if ! grep -Fq "Number of signers: 1" "$report"; then
+                echo "::error::$tag APK does not have exactly one signer"
+                signature_status="invalid"
+                audit_failed=1
+              fi
+            else
+              signature_status="unsigned-or-unverifiable"
               cat "$report"
               echo "::error::$tag APK is unsigned or its signature cannot be verified"
-              exit 1
+              audit_failed=1
             fi
-            grep -Fq "Verifies" "$report" || {
-              echo "::error::$tag APK signer did not report Verifies"
-              exit 1
-            }
-            grep -Fq "Verified using v2 scheme (APK Signature Scheme v2): true" "$report" || {
-              echo "::error::$tag APK does not have a verified V2 signature"
-              exit 1
-            }
-            grep -Fq "Number of signers: 1" "$report" || {
-              echo "::error::$tag APK does not have exactly one signer"
-              exit 1
-            }
 
             {
               printf 'tag=%s\n' "$tag"
               printf 'size_bytes=%s\n' "$actual_size"
               printf 'sha256=%s\n' "$expected_sha256"
-              printf 'signature=verified-v2-single-signer\n'
+              printf 'signature_status=%s\n' "$signature_status"
             } > "audit/legacy/$tag.txt"
           done
 
-          cmp -s "$download_dir/android-v22.apk" "$download_dir/android-v24.apk" || {
-            echo "::error::android-v22 and android-v24 assets do not contain identical bytes"
+          if [ -s "$download_dir/android-v22.apk" ] && [ -s "$download_dir/android-v24.apk" ]; then
+            if cmp -s "$download_dir/android-v22.apk" "$download_dir/android-v24.apk"; then
+              printf 'Both legacy release URLs returned byte-identical APKs.\n' > audit/legacy/summary.txt
+            else
+              echo "::error::android-v22 and android-v24 assets do not contain identical bytes"
+              audit_failed=1
+            fi
+          fi
+
+          if [ "$audit_failed" -ne 0 ]; then
+            echo "::error::Legacy Android APK audit failed; do not treat either asset as an accepted release."
             exit 1
-          }
-          printf 'Both legacy release URLs returned byte-identical APKs.\n' > audit/legacy/summary.txt
+          fi
 
       - name: Upload read-only audit evidence
         if: always()
