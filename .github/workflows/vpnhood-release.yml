@@ -322,3 +322,97 @@ jobs:
             echo "::error::Release keystore cleanup failed"
             exit 1
           }
+
+  # Read-only audit of the two legacy public assets named app-release-unsigned.apk.
+  # This job never modifies releases or publishes an APK.
+  audit-legacy-android-assets:
+    name: Audit legacy Android v22/v24 APK signatures (read-only)
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install Android build tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: build-tools;36.0.0
+
+      - name: Download and verify legacy APK bytes and signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p audit/legacy
+          download_dir="$RUNNER_TEMP/ghostweb-vpn-legacy-apks"
+          mkdir -p "$download_dir"
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          test -x "$APKSIGNER" || {
+            echo "::error::Android build-tools apksigner is unavailable"
+            exit 1
+          }
+
+          for tag in android-v22 android-v24; do
+            case "$tag" in
+              android-v22)
+                url="https://github.com/GhostWebEnterprise/ghost-web-vpn/releases/download/android-v22/app-release-unsigned.apk"
+                expected_sha256="c6fbf50f3cd34e52efed101054feb407c8fe772638826cfab53d4b754a976939"
+                expected_size="15632000"
+                ;;
+              android-v24)
+                url="https://github.com/GhostWebEnterprise/ghost-web-vpn/releases/download/android-v24/app-release-unsigned.apk"
+                expected_sha256="c6fbf50f3cd34e52efed101054feb407c8fe772638826cfab53d4b754a976939"
+                expected_size="15632000"
+                ;;
+            esac
+
+            apk="$download_dir/$tag.apk"
+            report="audit/legacy/$tag.apksigner.txt"
+            curl --fail --location --retry 3 --retry-all-errors "$url" --output "$apk"
+
+            actual_size="$(stat -c '%s' "$apk")"
+            test "$actual_size" = "$expected_size" || {
+              echo "::error::$tag asset size mismatch: expected $expected_size, got $actual_size"
+              exit 1
+            }
+            printf '%s  %s\n' "$expected_sha256" "$apk" | sha256sum --check -
+
+            if ! "$APKSIGNER" verify --verbose --print-certs "$apk" > "$report" 2>&1; then
+              cat "$report"
+              echo "::error::$tag APK is unsigned or its signature cannot be verified"
+              exit 1
+            fi
+            grep -Fq "Verifies" "$report" || {
+              echo "::error::$tag APK signer did not report Verifies"
+              exit 1
+            }
+            grep -Fq "Verified using v2 scheme (APK Signature Scheme v2): true" "$report" || {
+              echo "::error::$tag APK does not have a verified V2 signature"
+              exit 1
+            }
+            grep -Fq "Number of signers: 1" "$report" || {
+              echo "::error::$tag APK does not have exactly one signer"
+              exit 1
+            }
+
+            {
+              printf 'tag=%s\n' "$tag"
+              printf 'size_bytes=%s\n' "$actual_size"
+              printf 'sha256=%s\n' "$expected_sha256"
+              printf 'signature=verified-v2-single-signer\n'
+            } > "audit/legacy/$tag.txt"
+          done
+
+          cmp -s "$download_dir/android-v22.apk" "$download_dir/android-v24.apk" || {
+            echo "::error::android-v22 and android-v24 assets do not contain identical bytes"
+            exit 1
+          }
+          printf 'Both legacy release URLs returned byte-identical APKs.\n' > audit/legacy/summary.txt
+
+      - name: Upload read-only audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-vpn-apk-signature-audit
+          path: audit/legacy/
+          if-no-files-found: warn
+          retention-days: 30
