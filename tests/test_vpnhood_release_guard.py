@@ -31,10 +31,19 @@ class VpnHoodReleaseBadgingGuardTests(unittest.TestCase):
     def test_rejects_debuggable_apk(self):
         result = self.run_guard(
             "package: name='cfd.ghostbin.ghostwebvpn' versionCode='853'\n"
+            "application-label:'GhostWeb VPN'\n"
             "application-debuggable\n"
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("refusing production release", result.stderr)
+
+    def test_rejects_wrong_application_label(self):
+        result = self.run_guard(
+            "package: name='cfd.ghostbin.ghostwebvpn' versionCode='853'\n"
+            "application-label:'cfd.ghostbin.ghostwebvpn'\n"
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("application label", result.stderr)
 
     def test_rejects_empty_badging_output(self):
         result = self.run_guard("")
