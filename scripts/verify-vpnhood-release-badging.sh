@@ -17,4 +17,9 @@ if grep -Fq "application-debuggable" "$badging_file"; then
   exit 1
 fi
 
-echo "APK manifest is not debuggable."
+if ! grep -Fq "application-label:'GhostWeb VPN'" "$badging_file"; then
+  echo "::error::APK application label is not GhostWeb VPN; refusing release" >&2
+  exit 1
+fi
+
+echo "APK manifest is not debuggable and branded GhostWeb VPN."
