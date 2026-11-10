@@ -98,6 +98,11 @@ jobs:
               'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "VpnHood"), // for compatibility with old VpnHood app versions to keep tokens',
               'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "GhostWeb"),',
           )
+          replace_once(
+              root / "Resources/values/strings.xml",
+              '<string name="app_name">VpnHood!</string>',
+              '<string name="app_name">GhostWeb VPN</string>',
+          )
           PY
           grep -Fq '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>' vpnhood-upstream/Src/Apps/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
           grep -Fq 'GhostWeb VPN' vpnhood-upstream/Src/Apps/Client.Android.Web/AppConfigs.cs
@@ -150,7 +155,11 @@ jobs:
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -Fq "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-contents.txt
-          grep -Eq '(^|/)VpnHood\.AppLib\.Resources\.dll$' apk-contents.txt
+          RESOURCE_DLL="vpnhood-upstream/Src/AppLib/VpnHood.AppLib.Resources/bin/Debug/netstandard2.1/VpnHood.AppLib.Resources.dll"
+          test -s "$RESOURCE_DLL"
+          grep -Fq 'classes.dex' apk-contents.txt
+          grep -Fq "application-label:'GhostWeb VPN'" apk-badging.txt
+          grep -Fq "application: label='GhostWeb VPN'" apk-badging.txt
           if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-contents.txt; then
             echo "::error::Legacy WireGuard native library found in VpnHood APK"
             exit 1
@@ -257,6 +266,11 @@ jobs:
               'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "VpnHood"), // for compatibility with old VpnHood app versions to keep tokens',
               'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "GhostWeb"),',
           )
+          replace_once(
+              root / "Resources/values/strings.xml",
+              '<string name="app_name">VpnHood!</string>',
+              '<string name="app_name">GhostWeb VPN</string>',
+          )
           PY
           grep -Fq '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>' vpnhood-upstream/Src/Apps/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
           grep -Fq 'GhostWeb VPN' vpnhood-upstream/Src/Apps/Client.Android.Web/AppConfigs.cs
@@ -341,7 +355,11 @@ jobs:
           bash scripts/verify-vpnhood-release-badging.sh apk-badging.txt
           grep -Fq "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-release-contents.txt
-          grep -Eq '(^|/)VpnHood\.AppLib\.Resources\.dll$' apk-release-contents.txt
+          RESOURCE_DLL="vpnhood-upstream/Src/AppLib/VpnHood.AppLib.Resources/bin/Release/netstandard2.1/VpnHood.AppLib.Resources.dll"
+          test -s "$RESOURCE_DLL"
+          grep -Fq 'classes.dex' apk-release-contents.txt
+          grep -Fq "application-label:'GhostWeb VPN'" apk-badging.txt
+          grep -Fq "application: label='GhostWeb VPN'" apk-badging.txt
           if grep -F -e 'libwg-go.so' -e 'libwg-quick.so' -e 'libwg.so' apk-release-contents.txt; then
             echo "::error::Legacy WireGuard native library found in release APK"
             exit 1
