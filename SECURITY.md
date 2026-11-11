@@ -23,6 +23,20 @@ before use. The expected production certificate SHA-256 is:
 
 `5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9`
 
+**Known checksum-sidecar limitation for `vpnhood-android-v1`:** the original
+workflow generated the sidecar from the repository root, so it records the
+relative path `release/GhostWeb-VPN-VpnHood-release.apk`. GitHub publishes the
+APK asset under the basename `GhostWeb-VPN-VpnHood-release.apk`; therefore the
+unmodified sidecar may not pass `sha256sum --check` when both downloaded
+assets are placed in the same directory. The APK itself was verified in the
+release job with SHA-256
+`93b8cdf4f50d55c8cee4446ea83eb0da3ce6cff42b203785611fac002115ed9c`, matching
+the GitHub APK asset digest, and with V2/V3 signature verification plus the
+pinned production signer. For a local check, hash the downloaded APK directly
+and compare it with that value. The current release workflow computes the
+sidecar from inside the release directory so future assets use a portable
+basename.
+
 CI debug APKs are for build verification only. They are not production releases
 and must never be substituted for a production-signed APK.
 
