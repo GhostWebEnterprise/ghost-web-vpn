@@ -100,6 +100,17 @@ class VpnHoodReleaseBadgingGuardTests(unittest.TestCase):
             client_workflow,
         )
 
+    def test_upstream_overlay_preserves_legacy_vpnhood_token_storage(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "vpnhood-android.yml"
+        ).read_text(encoding="utf-8")
+        storage_guard = (
+            "grep -Fq 'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: \"VpnHood\")' "
+            "vpnhood-upstream/Src/Apps/Client.Android.Web/App.cs"
+        )
+        self.assertEqual(workflow.count(storage_guard), 2)
+        self.assertNotIn('appId: "GhostWeb"', workflow)
+
     def test_release_requires_nuget_provenance_report(self):
         verified_workflow = (
             ROOT / ".github" / "workflows" / "vpnhood-release.yml"
