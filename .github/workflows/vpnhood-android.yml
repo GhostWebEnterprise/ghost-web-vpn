@@ -94,11 +94,6 @@ jobs:
               "public Uri? UpdateInfoUrl { get; init; } = null;",
           )
           replace_once(
-              root / "App.cs",
-              'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "VpnHood"), // for compatibility with old VpnHood app versions to keep tokens',
-              'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "GhostWeb"),',
-          )
-          replace_once(
               root / "Resources/values/strings.xml",
               '<string name="app_name">VpnHood!</string>',
               '<string name="app_name">GhostWeb VPN</string>',
@@ -119,7 +114,8 @@ jobs:
           grep -Fq '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>' vpnhood-upstream/Src/Apps/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
           grep -Fq 'GhostWeb VPN' vpnhood-upstream/Src/Apps/Client.Android.Web/AppConfigs.cs
           grep -Fq 'UpdateInfoUrl { get; init; } = null;' vpnhood-upstream/Src/Apps/Client.Android.Web/AppConfigs.cs
-          grep -Fq 'appId: "GhostWeb"' vpnhood-upstream/Src/Apps/Client.Android.Web/App.cs
+          # Preserve VpnHood's legacy storage folder so existing GhostWeb VpnHood tokens remain available.
+          grep -Fq 'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "VpnHood")' vpnhood-upstream/Src/Apps/Client.Android.Web/App.cs
 
       - name: Set up .NET 10 LTS for pinned upstream compatibility overlay
         uses: actions/setup-dotnet@v4
@@ -274,11 +270,6 @@ jobs:
               "public Uri? UpdateInfoUrl { get; init; } = null;",
           )
           replace_once(
-              root / "App.cs",
-              'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "VpnHood"), // for compatibility with old VpnHood app versions to keep tokens',
-              'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "GhostWeb"),',
-          )
-          replace_once(
               root / "Resources/values/strings.xml",
               '<string name="app_name">VpnHood!</string>',
               '<string name="app_name">GhostWeb VPN</string>',
@@ -299,7 +290,8 @@ jobs:
           grep -Fq '<ApplicationId>cfd.ghostbin.ghostwebvpn</ApplicationId>' vpnhood-upstream/Src/Apps/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
           grep -Fq 'GhostWeb VPN' vpnhood-upstream/Src/Apps/Client.Android.Web/AppConfigs.cs
           grep -Fq 'UpdateInfoUrl { get; init; } = null;' vpnhood-upstream/Src/Apps/Client.Android.Web/AppConfigs.cs
-          grep -Fq 'appId: "GhostWeb"' vpnhood-upstream/Src/Apps/Client.Android.Web/App.cs
+          # Preserve VpnHood's legacy storage folder so existing GhostWeb VpnHood tokens remain available.
+          grep -Fq 'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "VpnHood")' vpnhood-upstream/Src/Apps/Client.Android.Web/App.cs
 
       - name: Set up .NET 10 LTS for pinned upstream compatibility overlay
         uses: actions/setup-dotnet@v4
