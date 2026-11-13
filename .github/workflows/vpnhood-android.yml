@@ -132,11 +132,45 @@ jobs:
       - name: Restore pinned VpnHood Android client
         run: dotnet restore vpnhood-upstream/Src/Apps/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj
 
+      - name: Read canonical GhostWeb Android version for upstream debug build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          project = Path("vpnhood-android/GhostWeb.VpnHood.Android.csproj")
+          source = project.read_text(encoding="utf-8")
+          def read_property(name):
+              values = re.findall(rf"<{name}>([^<]+)</{name}>", source)
+              if len(values) != 1:
+                  raise SystemExit(f"Expected exactly one {name} in {project}; found {len(values)}")
+              return values[0].strip()
+
+          code = read_property("ApplicationVersion")
+          display = read_property("ApplicationDisplayVersion")
+          if not code.isdigit() or not display:
+              raise SystemExit("Canonical GhostWeb Android version is invalid")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"GHOSTWEB_APP_VERSION_CODE={code}\\n")
+              env.write(f"GHOSTWEB_APP_VERSION_NAME={display}\\n")
+          print(f"Using GhostWeb Android versionCode={code}, versionName={display}")
+          PY
+
       - name: Build GhostWeb VpnHood Android debug client
-        run: dotnet build vpnhood-upstream/Src/Apps/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj -c Debug --no-restore
+        run: |
+          set -euo pipefail
+          dotnet build vpnhood-upstream/Src/Apps/Client.Android.Web/VpnHood.App.Client.Android.Web.csproj \
+            -c Debug --no-restore \
+            -p:ApplicationVersion="$GHOSTWEB_APP_VERSION_CODE" \
+            -p:ApplicationDisplayVersion="$GHOSTWEB_APP_VERSION_NAME"
 
       - name: Locate and verify debug APK signature, package and native libraries
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           APK_DIR="vpnhood-upstream/Src/Apps/Client.Android.Web/bin/Debug"
@@ -165,6 +199,14 @@ jobs:
           grep -Fq "Verified using v2 scheme (APK Signature Scheme v2): true" apksigner.txt
 
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
+          LATEST_VPNHOOD_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.draft == false and .prerelease == false and (.tag_name | test("^vpnhood-android-v[0-9]+$")))] | sort_by(.published_at) | last | .tag_name // empty')"
+          test -n "$LATEST_VPNHOOD_TAG" || { echo "::error::No published VpnHood Android release is available for version comparison"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/previous-vpnhood-release"
+          gh release download "$LATEST_VPNHOOD_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'GhostWeb-VPN-VpnHood-release.apk' --dir "$RUNNER_TEMP/previous-vpnhood-release"
+          PREVIOUS_APK="$RUNNER_TEMP/previous-vpnhood-release/GhostWeb-VPN-VpnHood-release.apk"
+          test -s "$PREVIOUS_APK"
+          "$BUILD_TOOLS/aapt" dump badging "$PREVIOUS_APK" > "$RUNNER_TEMP/previous-vpnhood-release/apk-badging.txt"
+          python3 scripts/verify-vpnhood-version-monotonic.py "$RUNNER_TEMP/previous-vpnhood-release/apk-badging.txt" apk-badging.txt
           grep -Fq "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           unzip -l "$APK" | tee apk-contents.txt
           RESOURCE_DLL="vpnhood-upstream/Src/AppLib/VpnHood.AppLib.Resources/bin/Debug/netstandard2.1/VpnHood.AppLib.Resources.dll"
