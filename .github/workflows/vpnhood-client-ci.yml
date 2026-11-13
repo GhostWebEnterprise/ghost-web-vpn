@@ -8,6 +8,7 @@ on:
       - "tests/test_vpnhood_activity_lifecycle.py"
       - "tests/test_vpnhood_nuget_provenance.py"
       - "scripts/record-vpnhood-nuget-provenance.py"
+      - "scripts/verify-vpnhood-release-badging.sh"
       - ".github/workflows/vpnhood-client-ci.yml"
   pull_request:
     branches: [main]
@@ -16,6 +17,7 @@ on:
       - "tests/test_vpnhood_activity_lifecycle.py"
       - "tests/test_vpnhood_nuget_provenance.py"
       - "scripts/record-vpnhood-nuget-provenance.py"
+      - "scripts/verify-vpnhood-release-badging.sh"
       - ".github/workflows/vpnhood-client-ci.yml"
   workflow_dispatch:
 
@@ -118,6 +120,7 @@ jobs:
             echo "::error::Unexpected GhostWeb VpnHood debug APK package ID."
             exit 1
           }
+          bash scripts/verify-vpnhood-release-badging.sh --allow-debuggable vpnhood-client-debug-artifact/apk-badging.txt
           cp "$APK" vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk
           cp VPNHOOD-NUGET-PACKAGES.txt vpnhood-client-debug-artifact/
           (
