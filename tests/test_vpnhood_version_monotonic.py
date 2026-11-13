@@ -66,6 +66,12 @@ class VpnHoodVersionMonotonicTests(unittest.TestCase):
         self.assertIn('-p:ApplicationDisplayVersion="$GHOSTWEB_APP_VERSION_NAME"', release_job)
         self.assertIn("verify-vpnhood-version-monotonic.py", release_job)
 
+        debug_job = workflow.split("  upstream-source-build:", 1)[1].split("  signed-release-build:", 1)[0]
+        self.assertIn("Read canonical GhostWeb Android version for upstream debug build", debug_job)
+        self.assertIn('-p:ApplicationVersion="$GHOSTWEB_APP_VERSION_CODE"', debug_job)
+        self.assertIn('-p:ApplicationDisplayVersion="$GHOSTWEB_APP_VERSION_NAME"', debug_job)
+        self.assertIn("verify-vpnhood-version-monotonic.py", debug_job)
+
     def test_both_signed_release_paths_compare_with_latest_published_apk(self):
         for workflow_name, job_marker in (
             ("vpnhood-android.yml", "  signed-release-build:"),
