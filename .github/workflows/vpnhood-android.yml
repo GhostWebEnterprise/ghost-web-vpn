@@ -154,8 +154,8 @@ jobs:
           if not code.isdigit() or not display:
               raise SystemExit("Canonical GhostWeb Android version is invalid")
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-              env.write(f"GHOSTWEB_APP_VERSION_CODE={code}\\n")
-              env.write(f"GHOSTWEB_APP_VERSION_NAME={display}\\n")
+              env.write(f"GHOSTWEB_APP_VERSION_CODE={code}\n")
+              env.write(f"GHOSTWEB_APP_VERSION_NAME={display}\n")
           print(f"Using GhostWeb Android versionCode={code}, versionName={display}")
           PY
 
