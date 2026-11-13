@@ -15,6 +15,8 @@ on:
       - "tests/test_vpnhood_activity_lifecycle.py"
       - "tests/test_vpnhood_release_guard.py"
       - "scripts/verify-vpnhood-release-badging.sh"
+      - "scripts/verify-vpnhood-version-monotonic.py"
+      - "tests/test_vpnhood_version_monotonic.py"
   pull_request:
     branches: [main]
     paths:
@@ -27,6 +29,8 @@ on:
       - "tests/test_vpnhood_activity_lifecycle.py"
       - "tests/test_vpnhood_release_guard.py"
       - "scripts/verify-vpnhood-release-badging.sh"
+      - "scripts/verify-vpnhood-version-monotonic.py"
+      - "tests/test_vpnhood_version_monotonic.py"
   workflow_dispatch:
     inputs:
       release_tag:
@@ -129,6 +133,8 @@ jobs:
 
       - name: Verify and stage the exact client APK
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -184,6 +190,14 @@ jobs:
           }
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-badging.txt
           bash scripts/verify-vpnhood-release-badging.sh apk-badging.txt
+          LATEST_VPNHOOD_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.draft == false and .prerelease == false and (.tag_name | test("^vpnhood-android-v[0-9]+$")))] | sort_by(.published_at) | last | .tag_name // empty')"
+          test -n "$LATEST_VPNHOOD_TAG" || { echo "::error::No published VpnHood Android release is available for version comparison"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/previous-vpnhood-release"
+          gh release download "$LATEST_VPNHOOD_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'GhostWeb-VPN-VpnHood-release.apk' --dir "$RUNNER_TEMP/previous-vpnhood-release"
+          PREVIOUS_APK="$RUNNER_TEMP/previous-vpnhood-release/GhostWeb-VPN-VpnHood-release.apk"
+          test -s "$PREVIOUS_APK"
+          "$BUILD_TOOLS/aapt" dump badging "$PREVIOUS_APK" > "$RUNNER_TEMP/previous-vpnhood-release/apk-badging.txt"
+          python3 scripts/verify-vpnhood-version-monotonic.py "$RUNNER_TEMP/previous-vpnhood-release/apk-badging.txt" apk-badging.txt
           grep -q "package: name='cfd.ghostbin.ghostwebvpn'" apk-badging.txt
           grep -Eq "launchable-activity: .* icon='[^']*ghostweb_vpn_logo[^']*'" apk-badging.txt || {
             echo "::error::GhostWeb launcher activity icon metadata is missing"
