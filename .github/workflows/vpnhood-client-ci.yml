@@ -9,6 +9,8 @@ on:
       - "tests/test_vpnhood_nuget_provenance.py"
       - "scripts/record-vpnhood-nuget-provenance.py"
       - "scripts/verify-vpnhood-release-badging.sh"
+      - "scripts/verify-vpnhood-version-monotonic.py"
+      - "tests/test_vpnhood_version_monotonic.py"
       - ".github/workflows/vpnhood-client-ci.yml"
   pull_request:
     branches: [main]
@@ -18,6 +20,8 @@ on:
       - "tests/test_vpnhood_nuget_provenance.py"
       - "scripts/record-vpnhood-nuget-provenance.py"
       - "scripts/verify-vpnhood-release-badging.sh"
+      - "scripts/verify-vpnhood-version-monotonic.py"
+      - "tests/test_vpnhood_version_monotonic.py"
       - ".github/workflows/vpnhood-client-ci.yml"
   workflow_dispatch:
 
@@ -34,6 +38,8 @@ jobs:
         run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
       - name: Test NuGet package provenance recorder
         run: python3 -m unittest -v tests/test_vpnhood_nuget_provenance.py
+      - name: Test VpnHood Android version monotonicity
+        run: python3 -m unittest -v tests/test_vpnhood_version_monotonic.py
       - name: Install .NET 10
         uses: actions/setup-dotnet@v4
         with:
