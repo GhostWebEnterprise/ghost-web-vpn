@@ -115,8 +115,8 @@ class VpnHoodReleaseBadgingGuardTests(unittest.TestCase):
         verified_workflow = (
             ROOT / ".github" / "workflows" / "vpnhood-release.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn("VPNHOOD-NUGET-PACKAGES.txt", verified_workflow)
-        self.assertIn("cmp -s release/VPNHOOD-NUGET-PACKAGES.txt", verified_workflow)
+        self.assertIn("release/VPNHOOD-NUGET-PACKAGES.txt", verified_workflow)
+        self.assertIn('cmp -s "$asset" "verified-release/$name"', verified_workflow)
 
     def test_verified_release_requires_compiled_vpnhood_android_assemblies(self):
         verified_workflow = (
