@@ -172,11 +172,9 @@ class VpnHoodNuGetProvenanceTests(unittest.TestCase):
         self.assertIn("scripts/record-vpnhood-nuget-provenance.py", client)
         self.assertIn("cp VPNHOOD-NUGET-PACKAGES.txt release/", release)
         self.assertIn("release/VPNHOOD-NUGET-PACKAGES.txt", release)
-        self.assertIn("--pattern 'VPNHOOD-NUGET-PACKAGES.txt'", release)
-        self.assertIn(
-            "cmp -s release/VPNHOOD-NUGET-PACKAGES.txt verified-release/VPNHOOD-NUGET-PACKAGES.txt",
-            release,
-        )
+        self.assertIn("release/VPNHOOD-NUGET-PACKAGES.txt", release)
+        self.assertIn('cmp -s "$asset" "verified-release/$name"', release)
+        self.assertIn('cmp -s "$asset" "existing-release/$name"', release)
         self.assertIn(
             "cp VPNHOOD-NUGET-PACKAGES.txt vpnhood-client-debug-artifact/", client
         )

@@ -115,8 +115,21 @@ class VpnHoodReleaseBadgingGuardTests(unittest.TestCase):
         verified_workflow = (
             ROOT / ".github" / "workflows" / "vpnhood-release.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn("VPNHOOD-NUGET-PACKAGES.txt", verified_workflow)
-        self.assertIn("cmp -s release/VPNHOOD-NUGET-PACKAGES.txt", verified_workflow)
+        self.assertIn("release/VPNHOOD-NUGET-PACKAGES.txt", verified_workflow)
+        self.assertIn('cmp -s "$asset" "verified-release/$name"', verified_workflow)
+
+    def test_draft_release_uses_release_ids_for_immutable_asset_verification(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "vpnhood-release.yml"
+        ).read_text(encoding="utf-8")
+        verified_release = workflow.split("  verified-release:", 1)[1]
+        self.assertIn("uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$release_id/assets", verified_release)
+        self.assertIn("releases/assets/$asset_id", verified_release)
+        self.assertIn("gh api --method PATCH -F draft=false", verified_release)
+        self.assertNotIn('gh release view "$TAG"', verified_release)
+        self.assertNotIn('gh release upload "$TAG"', verified_release)
+        self.assertNotIn('gh release download "$TAG"', verified_release)
+        self.assertIn('gh release download "$LATEST_VPNHOOD_TAG"', verified_release)
 
     def test_verified_release_requires_compiled_vpnhood_android_assemblies(self):
         verified_workflow = (

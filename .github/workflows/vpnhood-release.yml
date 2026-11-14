@@ -245,11 +245,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
         run: |
           set -euo pipefail
           TAG="$RELEASE_TAG"
           if [[ ! "$TAG" =~ ^vpnhood-android-v[0-9]+$ ]]; then
-            echo "::error::Invalid release tag; expected vpnhood-android-vN"
+            echo "::error::Invalid release tag; expected vpnhood-android-vN" >&2
             exit 1
           fi
           REQUESTED_VERSION="${TAG##*-v}"
@@ -260,71 +261,208 @@ jobs:
             echo "::error::Refusing non-monotonic VpnHood release ${TAG}; highest existing tag is vpnhood-android-v${HIGHEST_VERSION}" >&2
             exit 1
           fi
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Release $TAG already exists; refusing to modify existing assets"
+
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          matches="$(jq -c --arg tag "$TAG" '[.[] | select(.tag_name == $tag)]' <<< "$release_json")"
+          release_count="$(jq 'length' <<< "$matches")"
+          if [[ "$release_count" == "1" ]]; then
+            release_record="$(jq -c '.[0]' <<< "$matches")"
+            test "$(jq -r '.draft' <<< "$release_record")" = true || {
+              echo "::error::Release $TAG is already published; refusing to modify it" >&2
+              exit 1
+            }
+          elif [[ "$release_count" != "0" ]]; then
+            echo "::error::Multiple releases found for $TAG" >&2
             exit 1
           fi
+
           remote_tags="$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
           tag_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG" '$2 == ref {print $1}')"
           peeled_sha="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$TAG^{}" '$2 == ref {print $1}')"
           resolved_tag_sha="${peeled_sha:-$tag_sha}"
           if [ -n "$resolved_tag_sha" ]; then
-            if [ "$resolved_tag_sha" != "$GITHUB_SHA" ]; then
-              echo "::error::Tag $TAG already exists at a different commit; refusing to move it"
+            test "$resolved_tag_sha" = "$GITHUB_SHA" || {
+              echo "::error::Tag $TAG already exists at a different commit; refusing to move it" >&2
               exit 1
-            fi
-            echo "Tag $TAG already points to this workflow commit; reusing it"
+            }
           else
+            test "$release_count" = "0" || {
+              echo "::error::Draft release $TAG exists without its Git tag; refusing implicit repair" >&2
+              exit 1
+            }
             git tag "$TAG" "$GITHUB_SHA"
             git push origin "refs/tags/$TAG"
           fi
-          gh release create "$TAG" --draft --verify-tag \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "GhostWeb VPN — VpnHood Android" \
-            --notes "GhostWeb VPN Android client built against VpnHood.Client and VpnHood.Client.Device.Android 5.0.616-prerelease. Source/license evidence is attached. The signed APK is verified with apksigner and SHA-256 in CI."
-          gh release upload "$TAG" \
-            release/GhostWeb-VPN-VpnHood-release.apk \
-            release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
-            release/apksigner.txt \
-            release/VPNHOOD-CLIENT-DEPENDENCIES.txt \
-            release/VPNHOOD-NUGET-PACKAGES.txt \
-            release/VPNHOOD-LGPL-2.1-LICENSE.txt \
-            --repo "$GITHUB_REPOSITORY"
-          mkdir -p verified-release
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'GhostWeb-VPN-VpnHood-release.apk' --dir verified-release
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'GhostWeb-VPN-VpnHood-release.apk.sha256' --dir verified-release
-          cmp -s release/GhostWeb-VPN-VpnHood-release.apk \
-            verified-release/GhostWeb-VPN-VpnHood-release.apk || {
-              echo "::error::Downloaded release APK differs from verified build"; exit 1;
+          test "$(git rev-parse "$TAG^{commit}")" = "$GITHUB_SHA" || {
+            echo "::error::Release tag does not resolve to this verified build commit" >&2
+            exit 1
+          }
+
+          if [[ "$release_count" == "0" ]]; then
+            notes="GhostWeb VPN Android client built against VpnHood.Client and VpnHood.Client.Device.Android 5.0.616-prerelease. Source/license evidence is attached. The signed APK is verified with apksigner and SHA-256 in CI."
+            created="$(gh api --method POST \
+              -F tag_name="$TAG" \
+              -F target_commitish="$GITHUB_SHA" \
+              -F name="GhostWeb VPN — VpnHood Android" \
+              -F body="$notes" \
+              -F draft=true \
+              "repos/$GITHUB_REPOSITORY/releases")"
+            jq -e --arg tag "$TAG" '.tag_name == $tag and .draft == true and (.id | type == "number")' <<< "$created" >/dev/null
+          fi
+
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          matches="$(jq -c --arg tag "$TAG" '[.[] | select(.tag_name == $tag)]' <<< "$release_json")"
+          test "$(jq 'length' <<< "$matches")" = "1" || {
+            echo "::error::Expected exactly one draft release for $TAG" >&2
+            exit 1
+          }
+          release_record="$(jq -c '.[0]' <<< "$matches")"
+          release_id="$(jq -r '.id' <<< "$release_record")"
+          test "$(jq -r '.draft' <<< "$release_record")" = true || {
+            echo "::error::Release $TAG is not a draft" >&2
+            exit 1
+          }
+
+          assets=(
+            release/GhostWeb-VPN-VpnHood-release.apk
+            release/GhostWeb-VPN-VpnHood-release.apk.sha256
+            release/apksigner.txt
+            release/VPNHOOD-CLIENT-DEPENDENCIES.txt
+            release/VPNHOOD-NUGET-PACKAGES.txt
+            release/VPNHOOD-LGPL-2.1-LICENSE.txt
+          )
+          mkdir -p existing-release verified-release
+          download_release_asset() {
+            local asset_id="$1"
+            local destination="$2"
+            local headers status location
+            headers="$(mktemp)"
+            status="$(curl --silent --show-error --dump-header "$headers" \
+              --output "$destination" --write-out '%{http_code}' \
+              --header "Authorization: Bearer $GH_TOKEN" \
+              --header "Accept: application/octet-stream" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$asset_id")"
+            case "$status" in
+              200) ;;
+              301|302|303|307|308)
+                location="$(awk 'tolower($1) == "location:" { sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit }' "$headers")"
+                test -n "$location" || {
+                  rm -f "$headers" "$destination"
+                  echo "::error::GitHub asset redirect omitted its download URL" >&2
+                  return 1
+                }
+                # Never forward the GitHub token to the signed object-storage URL.
+                curl --fail --silent --show-error --location "$location" --output "$destination"
+                ;;
+              *)
+                rm -f "$headers" "$destination"
+                echo "::error::GitHub asset download returned HTTP $status" >&2
+                return 1
+                ;;
+            esac
+            rm -f "$headers"
+            test -s "$destination"
+          }
+
+          for asset in "${assets[@]}"; do
+            name="$(basename "$asset")"
+            asset_matches="$(jq -c --arg name "$name" '[.assets[] | select(.name == $name)]' <<< "$release_record")"
+            asset_count="$(jq 'length' <<< "$asset_matches")"
+            if [[ "$asset_count" == "1" ]]; then
+              asset_id="$(jq -r '.[0].id' <<< "$asset_matches")"
+              download_release_asset "$asset_id" "existing-release/$name"
+              cmp -s "$asset" "existing-release/$name" || {
+                echo "::error::Existing immutable release asset differs: $name" >&2
+                exit 1
+              }
+            elif [[ "$asset_count" == "0" ]]; then
+              encoded_name="$(jq -rn --arg value "$name" '$value | @uri')"
+              response="$(curl --fail --silent --show-error --request POST \
+                --header "Authorization: Bearer $GH_TOKEN" \
+                --header "Accept: application/vnd.github+json" \
+                --header "Content-Type: application/octet-stream" \
+                --header "X-GitHub-Api-Version: 2022-11-28" \
+                --data-binary "@$asset" \
+                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$release_id/assets?name=$encoded_name")"
+              jq -e --arg name "$name" '.name == $name and .state == "uploaded"' <<< "$response" >/dev/null || {
+                echo "::error::GitHub did not confirm upload of $name" >&2
+                exit 1
+              }
+            else
+              echo "::error::Duplicate release assets named $name" >&2
+              exit 1
+            fi
+          done
+
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          matches="$(jq -c --arg tag "$TAG" '[.[] | select(.tag_name == $tag)]' <<< "$release_json")"
+          test "$(jq 'length' <<< "$matches")" = "1" || {
+            echo "::error::Release $TAG disappeared or became ambiguous" >&2
+            exit 1
+          }
+          release_record="$(jq -c '.[0]' <<< "$matches")"
+          release_id="$(jq -r '.id' <<< "$release_record")"
+          test "$(jq -r '.draft' <<< "$release_record")" = true || {
+            echo "::error::Release $TAG is no longer a draft" >&2
+            exit 1
+          }
+
+          for asset in "${assets[@]}"; do
+            name="$(basename "$asset")"
+            expected="$(sha256sum "$asset" | cut -d' ' -f1)"
+            asset_matches="$(jq -c --arg name "$name" '[.assets[] | select(.name == $name)]' <<< "$release_record")"
+            test "$(jq 'length' <<< "$asset_matches")" = "1" || {
+              echo "::error::Expected exactly one release asset: $name" >&2
+              exit 1
             }
-          cmp -s release/GhostWeb-VPN-VpnHood-release.apk.sha256 \
-            verified-release/GhostWeb-VPN-VpnHood-release.apk.sha256 || {
-              echo "::error::Downloaded checksum manifest differs"; exit 1;
+            asset_record="$(jq -c '.[0]' <<< "$asset_matches")"
+            asset_id="$(jq -r '.id' <<< "$asset_record")"
+            digest="$(jq -r '.digest // empty' <<< "$asset_record")"
+            test "${digest#sha256:}" = "$expected" || {
+              echo "::error::GitHub release asset digest mismatch: $name" >&2
+              exit 1
             }
+            download_release_asset "$asset_id" "verified-release/$name"
+            cmp -s "$asset" "verified-release/$name" || {
+              echo "::error::Downloaded release asset differs: $name" >&2
+              exit 1
+            }
+          done
+
           (cd verified-release && sha256sum --check GhostWeb-VPN-VpnHood-release.apk.sha256)
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'VPNHOOD-NUGET-PACKAGES.txt' --dir verified-release
-          cmp -s release/VPNHOOD-NUGET-PACKAGES.txt verified-release/VPNHOOD-NUGET-PACKAGES.txt || {
-            echo "::error::Downloaded NuGet package provenance differs from the verified build report"; exit 1;
-          }
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'apksigner.txt' --dir verified-release
-          cmp -s release/apksigner.txt verified-release/apksigner.txt || {
-            echo "::error::Downloaded apksigner report differs from the verified build report"; exit 1;
-          }
           EXPECTED="$(cut -d' ' -f1 release/GhostWeb-VPN-VpnHood-release.apk.sha256)"
-          ACTUAL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
-            --jq '.assets[] | select(.name=="GhostWeb-VPN-VpnHood-release.apk") | .digest' \
-            | sed 's/^sha256://')"
+          ACTUAL="$(jq -r --arg name "GhostWeb-VPN-VpnHood-release.apk" '[.assets[] | select(.name == $name)] | if length == 1 then .[0].digest else empty end' <<< "$release_record" | sed 's/^sha256://')"
           test -n "$ACTUAL" && test "$EXPECTED" = "$ACTUAL" || {
-            echo "::error::GitHub release digest does not match verified APK"; exit 1;
+            echo "::error::GitHub release digest does not match verified APK" >&2
+            exit 1
           }
-          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
-          IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
-          test "$IS_DRAFT" = false || { echo "::error::Release remains draft"; exit 1; }
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets
+
+          published="$(gh api --method PATCH -F draft=false "repos/$GITHUB_REPOSITORY/releases/$release_id")"
+          jq -e '.draft == false and .published_at != null' <<< "$published" >/dev/null || {
+            echo "::error::GitHub did not confirm VpnHood release publication" >&2
+            exit 1
+          }
+          final_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          final_matches="$(jq -c --arg tag "$TAG" '[.[] | select(.tag_name == $tag)]' <<< "$final_json")"
+          test "$(jq 'length' <<< "$final_matches")" = "1" || {
+            echo "::error::Published VpnHood release could not be uniquely re-read" >&2
+            exit 1
+          }
+          final_record="$(jq -c '.[0]' <<< "$final_matches")"
+          jq -e '.draft == false and .published_at != null' <<< "$final_record" >/dev/null || {
+            echo "::error::Final VpnHood release state is not published" >&2
+            exit 1
+          }
+          for asset in "${assets[@]}"; do
+            name="$(basename "$asset")"
+            expected="$(sha256sum "$asset" | cut -d' ' -f1)"
+            actual="$(jq -r --arg name "$name" '[.assets[] | select(.name == $name)] | if length == 1 then .[0].digest else empty end' <<< "$final_record" | sed 's/^sha256://')"
+            test "$actual" = "$expected" || {
+              echo "::error::Published VpnHood asset digest changed: $name" >&2
+              exit 1
+            }
+          done
 
       - name: Remove release signing material
         if: always()
