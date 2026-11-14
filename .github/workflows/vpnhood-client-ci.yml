@@ -126,6 +126,19 @@ jobs:
             echo "::error::Unexpected GhostWeb VpnHood debug APK package ID."
             exit 1
           }
+          "$AAPT" dump xmltree "$APK" AndroidManifest.xml \
+            | tee vpnhood-client-debug-artifact/AndroidManifest.xmltree.txt
+          for required in \
+            "android.permission.FOREGROUND_SERVICE" \
+            "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" \
+            "android.permission.BIND_VPN_SERVICE" \
+            "android.net.VpnService" \
+            "AndroidPacketCapture"; do
+            grep -Fq "$required" vpnhood-client-debug-artifact/AndroidManifest.xmltree.txt || {
+              echo "::error::VpnHood Android manifest is missing required VPN service declaration: $required"
+              exit 1
+            }
+          done
           bash scripts/verify-vpnhood-release-badging.sh --allow-debuggable vpnhood-client-debug-artifact/apk-badging.txt
           cp "$APK" vpnhood-client-debug-artifact/GhostWeb-VpnHood-Android-debug.apk
           cp VPNHOOD-NUGET-PACKAGES.txt vpnhood-client-debug-artifact/
