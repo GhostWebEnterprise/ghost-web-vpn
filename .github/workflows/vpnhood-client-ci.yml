@@ -12,6 +12,7 @@ on:
       - "scripts/verify-vpnhood-version-monotonic.py"
       - "tests/test_vpnhood_version_monotonic.py"
       - ".github/workflows/vpnhood-client-ci.yml"
+      - ".github/workflows/vpnhood-android.yml"
   pull_request:
     branches: [main]
     paths:
@@ -23,6 +24,7 @@ on:
       - "scripts/verify-vpnhood-version-monotonic.py"
       - "tests/test_vpnhood_version_monotonic.py"
       - ".github/workflows/vpnhood-client-ci.yml"
+      - ".github/workflows/vpnhood-android.yml"
   workflow_dispatch:
 
 permissions:
