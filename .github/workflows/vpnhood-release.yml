@@ -474,3 +474,130 @@ jobs:
             echo "::error::Release keystore cleanup failed"
             exit 1
           }
+
+  # Read-only audit of every published Android APK asset in the repository.
+  # This job never modifies releases, creates tags, or publishes APKs.
+  audit-legacy-android-assets:
+    name: Audit published Android APK signatures (read-only)
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install Android build tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: build-tools;36.0.0
+
+      - name: Download and verify every published Android APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p audit/legacy
+          download_dir="$RUNNER_TEMP/ghostweb-vpn-published-apks"
+          mkdir -p "$download_dir"
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          test -x "$APKSIGNER" || {
+            echo "::error::Android build-tools apksigner is unavailable"
+            exit 1
+          }
+
+          audit_failed=0
+          while IFS='|' read -r tag asset expected_size expected_sha256 expected_signer; do
+            [ -n "$tag" ] || continue
+            url="https://github.com/GhostWebEnterprise/ghost-web-vpn/releases/download/$tag/$asset"
+            apk="$download_dir/$tag.apk"
+            report="audit/legacy/$tag.apksigner.txt"
+            signature_status="unverified"
+            actual_size="0"
+
+            if ! curl --fail --location --retry 3 --retry-all-errors "$url" --output "$apk"; then
+              echo "::error::Unable to download $tag/$asset"
+              audit_failed=1
+              printf 'Download failed for %s/%s\n' "$tag" "$asset" > "$report"
+              printf 'tag=%s\nasset=%s\nsignature_status=download-failed\n' "$tag" "$asset" > "audit/legacy/$tag.txt"
+              continue
+            fi
+
+            actual_size="$(stat -c '%s' "$apk")"
+            if [ "$actual_size" != "$expected_size" ]; then
+              echo "::error::$tag asset size mismatch: expected $expected_size, got $actual_size"
+              audit_failed=1
+            fi
+            if ! printf '%s  %s\n' "$expected_sha256" "$apk" | sha256sum --check -; then
+              echo "::error::$tag asset SHA-256 differs from the GitHub release digest"
+              audit_failed=1
+            fi
+
+            if "$APKSIGNER" verify --verbose --print-certs "$apk" > "$report" 2>&1; then
+              signature_status="verified"
+              if ! grep -Fq "Verifies" "$report"; then
+                echo "::error::$tag APK signer did not report Verifies"
+                signature_status="invalid"
+                audit_failed=1
+              fi
+              if ! grep -Fq "Verified using v2 scheme (APK Signature Scheme v2): true" "$report"; then
+                echo "::error::$tag APK does not have a verified V2 signature"
+                signature_status="invalid"
+                audit_failed=1
+              fi
+              if ! grep -Fq "Number of signers: 1" "$report"; then
+                echo "::error::$tag APK does not have exactly one signer"
+                signature_status="invalid"
+                audit_failed=1
+              fi
+              if [ -n "$expected_signer" ] && ! grep -Fq "certificate SHA-256 digest: $expected_signer" "$report"; then
+                echo "::error::$tag APK signer differs from the recorded production identity"
+                signature_status="signer-mismatch"
+                audit_failed=1
+              fi
+            else
+              signature_status="unsigned-or-unverifiable"
+              cat "$report"
+              echo "::error::$tag APK is unsigned or its signature cannot be verified"
+              audit_failed=1
+            fi
+
+            {
+              printf 'tag=%s\n' "$tag"
+              printf 'asset=%s\n' "$asset"
+              printf 'size_bytes=%s\n' "$actual_size"
+              printf 'sha256=%s\n' "$expected_sha256"
+              printf 'signature_status=%s\n' "$signature_status"
+              if [ -n "$expected_signer" ]; then
+                printf 'expected_signer_sha256=%s\n' "$expected_signer"
+              fi
+            } > "audit/legacy/$tag.txt"
+          done <<'RELEASE_ASSETS'
+          android-v22|app-release-unsigned.apk|15632000|c6fbf50f3cd34e52efed101054feb407c8fe772638826cfab53d4b754a976939|
+          android-v24|app-release-unsigned.apk|15632000|c6fbf50f3cd34e52efed101054feb407c8fe772638826cfab53d4b754a976939|
+          android-v30|app-release.apk|15640192|e5598fa36cef7475001932a8af1450f7ec2336fe5c51572525a79f831a2d6713|5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9
+          android-v31|app-release.apk|15640192|ac82961018fe6b755cc3849f909400ef47d5da050e2f7a99b693926d47a6bc65|5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9
+          android-v33|app-release.apk|15640192|c7f16d55d81b9fdbd3f152e862f8b166a49e6c424c4ce3bfbc0746ebb04058d3|5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9
+          android-v39|app-release.apk|15640192|a79972605a059ff368b2ba6ea9527e825f9226efa65c0f08cbf447d448deca7a|5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9
+          vpnhood-android-v1|GhostWeb-VPN-VpnHood-release.apk|72508762|93b8cdf4f50d55c8cee4446ea83eb0da3ce6cff42b203785611fac002115ed9c|5b389450352bfe408c0a7be6920f4510e09add61156306a747286125e638dcb9
+          RELEASE_ASSETS
+
+          if [ -s "$download_dir/android-v22.apk" ] && [ -s "$download_dir/android-v24.apk" ]; then
+            if cmp -s "$download_dir/android-v22.apk" "$download_dir/android-v24.apk"; then
+              printf 'android-v22 and android-v24 return byte-identical APKs.\n' > audit/legacy/summary.txt
+            else
+              echo "::error::android-v22 and android-v24 assets do not contain identical bytes"
+              audit_failed=1
+            fi
+          fi
+
+          if [ "$audit_failed" -ne 0 ]; then
+            echo "::error::At least one published Android APK failed the signature/provenance audit."
+            exit 1
+          fi
+
+      - name: Upload read-only audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-vpn-apk-signature-audit
+          path: audit/legacy/
+          if-no-files-found: warn
+          retention-days: 30
