@@ -2,7 +2,7 @@ name: VpnHood Android Migration
 
 on:
   push:
-    branches: [migration/vpnhood-android]
+    branches: [migration/vpnhood-android, main]
     paths:
       - "vpnhood-android/**"
       - "scripts/verify-vpnhood-version-monotonic.py"
