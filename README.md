@@ -15,7 +15,7 @@ Privacy-focused browser routing and VPN tooling for endpoints you control.
 [![Platform](https://img.shields.io/badge/Platform-Browser%20%7C%20Android%20%7C%20Desktop-3DDC84?style=plastic&logo=android&logoColor=white)](https://github.com/GhostWebEnterprise/ghost-web-vpn)
 [![Release](https://img.shields.io/github/v/release/GhostWebEnterprise/ghost-web-vpn?style=plastic&label=GhostWeb%20VPN)](https://github.com/GhostWebEnterprise/ghost-web-vpn/releases)
 [![Test](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/ci.yml?branch=main&style=plastic&label=Test)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/ci.yml)
-[![Android](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/android.yml?branch=main&style=plastic&label=Android)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/android.yml)
+[![VpnHood Android build](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/vpnhood-client-ci.yml?branch=main&style=plastic&label=VpnHood%20Android%20build)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/vpnhood-client-ci.yml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/codeql.yml?branch=main&style=plastic&label=CodeQL)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/codeql.yml)
 [![Super-Linter](https://img.shields.io/github/actions/workflow/status/GhostWebEnterprise/ghost-web-vpn/super-linter.yml?branch=main&style=plastic&label=Super-Linter)](https://github.com/GhostWebEnterprise/ghost-web-vpn/actions/workflows/super-linter.yml)
 [![Website](https://img.shields.io/badge/Project%20Hub-ghostweb.bot.cd-0b57d0?style=plastic&logo=googlechrome&logoColor=white)](https://ghostweb.bot.cd/vpn.html)[![Need support?](https://img.shields.io/badge/Need%20support%3F-Contact%3A%20support--ghostweb%40proton.me-6D4AFF?style=plastic&logo=protonmail&logoColor=white)](mailto:support-ghostweb@proton.me)
@@ -72,13 +72,42 @@ Never expose unauthenticated proxy listeners publicly. Verify your endpoint conf
 
 ## 📱 Android development
 
+The supported Android client is the .NET Android project at
+`vpnhood-android/GhostWeb.VpnHood.Android.csproj`. It uses the pinned
+`VpnHood.Client` and `VpnHood.Client.Device.Android` packages from the
+official VpnHood project.
+
+Local debug build (with the .NET 10 Android workload and Android SDK installed):
+
 ```sh
-cd android
-gradle assembleDebug
-gradle assembleRelease
+dotnet restore vpnhood-android/GhostWeb.VpnHood.Android.csproj
+dotnet build vpnhood-android/GhostWeb.VpnHood.Android.csproj \
+  --no-restore -c Debug -f net10.0-android36.1
 ```
 
-Successful compilation is one development gate; it is not equivalent to verification of network/privacy behavior.
+The `vpnhood-client-ci.yml` workflow inspects the restored package APIs,
+builds the client, and uploads a short-lived **debug-signed** APK with checksum
+and signer evidence. A debug artifact is not a production release.
+
+### Legacy Android directory
+
+The top-level `android/` directory is retained for legacy/reference code and
+still contains the pre-migration WireGuard project. It is **not** the
+authoritative VpnHood client or release path. Do not distribute APKs built
+from that directory.
+
+### Production Android release
+
+The only supported VpnHood production release path is
+`.github/workflows/vpnhood-release.yml`, manually dispatched from `main`.
+It requires all four Android signing secrets, preserves the existing
+production signer, rejects unsigned outputs, verifies APK Signature Scheme
+V2, checks monotonically increasing versionCode, and byte-verifies the
+published APK and evidence. Missing or invalid signing material blocks
+publication.
+
+Successful compilation is one development gate; it is not equivalent to
+verification of network/privacy behavior.
 
 ## 🖥️ Desktop development
 
