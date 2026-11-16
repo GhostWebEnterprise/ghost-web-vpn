@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Test Android activity session lifecycle contract
         run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
       - name: Test NuGet package provenance recorder
@@ -43,7 +43,7 @@ jobs:
       - name: Test VpnHood Android version monotonicity
         run: python3 -m unittest -v tests/test_vpnhood_version_monotonic.py
       - name: Install .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
       - name: Install .NET Android workload
@@ -166,7 +166,7 @@ jobs:
             exit 1
           fi
       - name: Upload verified GhostWeb VpnHood client debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghostweb-vpn-vpnhood-client-debug
           path: vpnhood-client-debug-artifact/
