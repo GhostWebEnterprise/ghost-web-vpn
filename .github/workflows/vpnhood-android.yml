@@ -28,10 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout GhostWeb migration
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout pinned VpnHood upstream
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: vpnhood/VpnHood
           ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
@@ -122,7 +122,7 @@ jobs:
           grep -Fq 'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "VpnHood")' vpnhood-upstream/Src/Apps/Client.Android.Web/App.cs
 
       - name: Set up .NET 10 LTS for pinned upstream compatibility overlay
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
@@ -237,7 +237,7 @@ jobs:
           )
 
       - name: Upload VpnHood debug APK evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghostweb-vpn-vpnhood-debug
           path: vpnhood-debug-artifact/
@@ -252,10 +252,10 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout GhostWeb migration
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout pinned VpnHood upstream
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: vpnhood/VpnHood
           ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
@@ -340,7 +340,7 @@ jobs:
           grep -Fq 'StorageFolderPath = AppOptions.BuildStorageFolderPath(appId: "VpnHood")' vpnhood-upstream/Src/Apps/Client.Android.Web/App.cs
 
       - name: Set up .NET 10 LTS for pinned upstream compatibility overlay
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
@@ -479,7 +479,7 @@ jobs:
           )
 
       - name: Upload signed VpnHood release evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghostweb-vpn-vpnhood-release
           path: vpnhood-release-artifact/

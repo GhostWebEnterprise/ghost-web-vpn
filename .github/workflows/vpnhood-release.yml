@@ -48,7 +48,7 @@ jobs:
   validate-release-guard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Test Android activity session lifecycle contract
         run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
       - name: Test debuggable APK release guard
@@ -64,13 +64,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Test Android activity session lifecycle contract
         run: python3 -m unittest -v tests/test_vpnhood_activity_lifecycle.py
 
       - name: Checkout verified VpnHood source and license
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: vpnhood/VpnHood
           ref: ${{ env.VPNHOOD_UPSTREAM_REF }}
@@ -84,7 +84,7 @@ jobs:
           test "$(cat vpnhood-upstream.sha)" = "$VPNHOOD_UPSTREAM_REF"
           grep -q "GNU LESSER GENERAL PUBLIC LICENSE" vpnhood-upstream/LICENSE
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
@@ -233,7 +233,7 @@ jobs:
           test -s release/VPNHOOD-CLIENT-DEPENDENCIES.txt
 
       - name: Upload verified release evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghostweb-vpn-vpnhood-public-release
           path: release/
