@@ -236,10 +236,10 @@ jobs:
             sha256sum --check vpnhood-spa.sha256
           )
 
-      - name: Upload VpnHood debug APK evidence
+      - name: Upload VpnHood upstream sample debug APK evidence
         uses: actions/upload-artifact@v7
         with:
-          name: ghostweb-vpn-vpnhood-debug
+          name: vpnhood-upstream-sample-debug
           path: vpnhood-debug-artifact/
           if-no-files-found: error
           retention-days: 14
