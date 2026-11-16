@@ -6,7 +6,6 @@
     <ApplicationTitle>GhostWeb VPN</ApplicationTitle>
     <ApplicationVersion>854</ApplicationVersion>
     <ApplicationDisplayVersion>8.2.854</ApplicationDisplayVersion>
-    
     <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

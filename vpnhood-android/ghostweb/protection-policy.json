@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "autoProtect": {
+    "enabledByDefault": true,
+    "requireVpnForInternet": true,
+    "privateDns": true,
+    "reconnectOnNetworkChange": true
+  },
+  "smartConnect": {
+    "enabledByDefault": true,
+    "preferHealthyLowestLatency": true,
+    "protocolOrder": ["quic", "udp", "tcp"],
+    "allowUnprotectedFallback": false
+  }
+}
